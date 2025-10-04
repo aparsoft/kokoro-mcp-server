@@ -86,11 +86,11 @@ aparsoft-tts = "aparsoft_tts.cli:app"
 aparsoft-tts-server = "aparsoft_tts.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aparsoft_tts"]
+packages = ["aparsoft_tts"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/src",
+    "/aparsoft_tts",
     "/tests",
     "/README.md",
     "/LICENSE",
@@ -174,7 +174,7 @@ addopts = [
     "--cov-report=xml",
 ]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["."]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -183,7 +183,7 @@ markers = [
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["src"]
+source = ["aparsoft_tts"]
 branch = true
 omit = [
     "*/tests/*",

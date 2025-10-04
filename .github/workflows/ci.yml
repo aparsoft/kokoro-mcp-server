@@ -34,7 +34,7 @@ jobs:
       run: ruff check .
 
     - name: Type check with mypy
-      run: mypy src/ --ignore-missing-imports
+      run: mypy aparsoft_tts/ --ignore-missing-imports
       continue-on-error: true  # Don't fail on type errors initially
 
   # Run Tests

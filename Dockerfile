@@ -30,7 +30,7 @@ RUN pip install --upgrade pip && \
     pip install -e ".[mcp,cli]"
 
 # Copy application code
-COPY src/ /app/src/
+COPY aparsoft_tts/ /app/aparsoft_tts/
 
 # Change ownership
 RUN chown -R ttsuser:ttsuser /app

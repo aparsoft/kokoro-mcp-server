@@ -87,7 +87,7 @@ black .
 ruff check .
 
 # Type check with mypy
-mypy src/
+mypy aparsoft_tts/
 ```
 
 ### 5. Commit Changes
