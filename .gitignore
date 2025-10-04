@@ -156,3 +156,5 @@ temp/
 *.tmp
 local_folder/
 local_folder/*
+output/
+output/*

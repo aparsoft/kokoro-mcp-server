@@ -127,8 +127,14 @@ class TTSEngine(LoggerMixin):
                 enhance=enhance,
             )
 
-            # Generate speech
-            generator = self.pipeline(text, voice=voice, speed=speed)
+            # Generate speech using Kokoro's built-in newline handling
+            # split_pattern processes newlines properly for smooth speech
+            generator = self.pipeline(
+                text,
+                voice=voice,
+                speed=speed,
+                split_pattern=r'\n+'  # Official Kokoro way to handle newlines
+            )
 
             audio_chunks = []
             for _, _, audio in generator:
@@ -196,7 +202,13 @@ class TTSEngine(LoggerMixin):
         try:
             self.log.info("generating_speech_stream", text_length=len(text), voice=voice)
 
-            generator = self.pipeline(text, voice=voice, speed=speed)
+            # Use Kokoro's built-in newline handling
+            generator = self.pipeline(
+                text,
+                voice=voice,
+                speed=speed,
+                split_pattern=r'\n+'
+            )
 
             for _, _, audio in generator:
                 yield audio.astype(np.float32)
