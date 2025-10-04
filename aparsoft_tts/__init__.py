@@ -1,4 +1,4 @@
-"""Aparsoft TTS - Production-Ready Text-to-Speech for YouTube Videos.
+"""Aparsoft TTS - Comprehensive Text-to-Speech for YouTube Videos.
 
 This package provides a comprehensive TTS solution using Kokoro TTS models
 with professional audio enhancement, MCP server integration, and enterprise-grade

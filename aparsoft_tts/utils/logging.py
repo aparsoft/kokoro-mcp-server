@@ -52,7 +52,7 @@ def add_service_context(
 def setup_logging(config: LoggingConfig | None = None) -> None:
     """Configure structured logging for the application.
 
-    This function sets up structlog with production-ready configuration including:
+    This function sets up structlog with Comprehensive configuration including:
     - Structured JSON logging for production
     - Human-readable console logging for development
     - Correlation IDs for request tracing

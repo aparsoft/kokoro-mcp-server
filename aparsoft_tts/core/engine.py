@@ -1,4 +1,4 @@
-"""Production-ready TTS engine using Kokoro TTS with intelligent chunking."""
+"""Comprehensive TTS engine using Kokoro TTS with intelligent chunking."""
 
 import re
 from pathlib import Path
@@ -30,7 +30,7 @@ ALL_VOICES = MALE_VOICES + FEMALE_VOICES
 
 
 class TTSEngine(LoggerMixin):
-    """Production-ready TTS engine with intelligent token-aware chunking.
+    """Comprehensive TTS engine with intelligent token-aware chunking.
 
     This class provides a high-level interface to the Kokoro TTS model with:
     - Automatic token counting and intelligent chunking

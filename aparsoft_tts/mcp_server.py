@@ -1,4 +1,4 @@
-"""Production-grade MCP server for Aparsoft TTS using FastMCP.
+"""Comprehensive MCP server for Aparsoft TTS using FastMCP.
 
 This MCP server exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
 Cursor, and other MCP-compatible clients. It provides four main tools:
@@ -13,7 +13,7 @@ MCP protocol implementation with features like:
 - Automatic tool schema generation from Python type hints
 - Request validation with Pydantic models
 - Structured logging with correlation IDs
-- Production-ready error handling
+- Comprehensive error handling
 - stdio transport for local MCP clients
 
 Setup Instructions:

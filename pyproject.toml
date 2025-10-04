@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "aparsoft-tts"
 version = "1.0.0"
-description = "Production-Ready Text-to-Speech Solution for YouTube Videos using Kokoro TTS and MCP Server"
+description = "Comprehensive Text-to-Speech Solution for YouTube Videos using Kokoro TTS and MCP Server"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}

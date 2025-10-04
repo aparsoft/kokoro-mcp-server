@@ -13,7 +13,7 @@ from aparsoft_tts.utils.logging import setup_logging
 
 app = typer.Typer(
     name="aparsoft-tts",
-    help="Production-Ready Text-to-Speech for YouTube Videos",
+    help="Comprehensive Text-to-Speech for YouTube Videos",
     add_completion=False,
 )
 
@@ -160,7 +160,7 @@ def voices():
 def version():
     """Show version information."""
     console.print("[bold]Aparsoft TTS[/bold] v1.0.0")
-    console.print("Production-Ready Text-to-Speech for YouTube Videos")
+    console.print("Comprehensive Text-to-Speech for YouTube Videos")
 
 
 if __name__ == "__main__":

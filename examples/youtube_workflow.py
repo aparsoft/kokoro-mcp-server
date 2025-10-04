@@ -17,43 +17,36 @@ def create_youtube_voiceover():
     video_sections = {
         "intro": """
             Hi, I'm from Aparsoft. In this tutorial, we're going to show you
-            how to deploy production-ready AI chatbots in just 10 days.
+            how to deploy Comprehensive AI chatbots in just 10 days.
         """,
-
         "hook": """
             Most companies spend 3 to 6 months on AI projects.
             But what if you could go from idea to deployment in 10 days?
         """,
-
         "section_1": """
             First, let's understand our Quick AI Solutions approach.
             We use pre-built modules and proven frameworks instead of building from scratch.
         """,
-
         "section_2": """
             Here's how it works. We start with your requirements,
             select the appropriate AI models, and configure them for your use case.
         """,
-
         "section_3": """
             Next, we integrate the AI with your existing systems using our
             standardized deployment pipeline.
         """,
-
         "demo": """
             Let me show you a real example. This chatbot was deployed for a
             healthcare company in just 8 days.
         """,
-
         "call_to_action": """
             If you want to deploy AI solutions quickly, visit aparsoft.com
             or call us at +91 8904064878.
         """,
-
         "outro": """
             Thanks for watching! Subscribe to our channel for more AI tutorials,
             and hit the bell icon for notifications. See you in the next video!
-        """
+        """,
     }
 
     # Create output directory
@@ -68,12 +61,7 @@ def create_youtube_voiceover():
         print(f"  {i}. Generating {name}...")
 
         output_file = output_dir / f"{i:02d}_{name}.wav"
-        engine.generate(
-            text=text.strip(),
-            output_path=output_file,
-            voice="am_michael",
-            speed=1.0
-        )
+        engine.generate(text=text.strip(), output_path=output_file, voice="am_michael", speed=1.0)
 
         segment_paths.append(output_file)
 
@@ -85,9 +73,7 @@ def create_youtube_voiceover():
     # Generate complete voiceover
     print("\n🎙️  Generating complete voiceover...")
     complete_path = engine.process_script(
-        script_path=script_path,
-        output_path=output_dir / "complete_voiceover.wav",
-        gap_duration=0.5
+        script_path=script_path, output_path=output_dir / "complete_voiceover.wav", gap_duration=0.5
     )
 
     # Summary
