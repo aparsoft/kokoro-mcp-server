@@ -1,936 +1,620 @@
-# 🎙️ Aparsoft YouTube TTS System
+# Kokoro YouTube TTS
 
-**Production-Ready Text-to-Speech Solution for YouTube Videos**
-
-A comprehensive, open-source text-to-speech system using state-of-the-art Hugging Face models, audio enhancement with librosa, and Model Context Protocol (MCP) server integration. Built specifically for creating professional voiceovers without relying on paid services like ElevenLabs.
+A production-ready Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with professional audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Models-yellow)](https://huggingface.co/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ---
 
-## 📋 Table of Contents
+## Features
 
-- [Overview](#overview)
-- [Key Features](#key-features)
-- [Why This Solution?](#why-this-solution)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Usage](#usage)
-- [MCP Server Setup](#mcp-server-setup)
-- [Advanced Features](#advanced-features)
-- [API Reference](#api-reference)
-- [Model Comparison](#model-comparison)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+- **Kokoro-82M TTS Engine**: Open-weight model with 82M parameters
+- **Audio Enhancement**: Professional processing with librosa (normalization, noise reduction, fade in/out)
+- **MCP Server**: Model Context Protocol integration for Claude Desktop, Cursor, and other AI tools
+- **CLI Interface**: Command-line tools for quick generation
+- **Batch Processing**: Generate multiple audio files efficiently
+- **Script Processing**: Convert complete video scripts with paragraph detection
+- **Docker Support**: Production-ready containerization with docker-compose
+- **Enterprise Features**: Structured logging, configuration management, comprehensive testing
+- **CI/CD**: GitHub Actions pipeline with automated testing
 
 ---
 
-## 🎯 Overview
+## Problem & Solution
 
-This TTS system is designed for **Aparsoft's YouTube content creation**, providing:
+### Building on Kokoro-82M
 
-- **High-Quality Voice Generation**: Using Kokoro-82M (82M parameters, #1 trending on Hugging Face)
-- **Audio Enhancement**: Professional-grade audio processing with librosa
-- **MCP Integration**: Automated workflows via Model Context Protocol servers
-- **100% Open Source**: No API costs, complete control
+We integrate Kokoro-82M's excellent TTS inference with production-grade tooling and workflow enhancements. This toolkit adds:
 
-### Why We Built This
+1. **Professional audio post-processing** - Normalization, noise reduction, silence trimming, and fade in/out using librosa
+2. **Automated script workflows** - Direct script-to-voiceover conversion with paragraph detection and gap management
+3. **IDE-native generation** - MCP server integration eliminates context switching for Claude Desktop and Cursor users
+4. **Production infrastructure** - Docker deployment, structured logging, configuration management, and comprehensive testing
+5. **Batch processing** - CLI and Python APIs for processing multiple segments efficiently
 
-Creating YouTube videos requires consistent, professional voiceovers. Instead of:
-- ❌ Paying for ElevenLabs ($22-99/month)
-- ❌ Using non-native English (limiting reach)
-- ❌ Inconsistent voice quality
+### Technical Implementation
 
-We built a system that:
-- ✅ Generates high-quality male voices for free
-- ✅ Enhances audio for broadcast quality
-- ✅ Automates voiceover creation
-- ✅ Integrates with our development workflow
+**Audio Enhancement (librosa Integration):**
 
----
-
-## ✨ Key Features
-
-### 🎤 **Multiple TTS Models**
-- **Kokoro-82M** (Recommended): 82M parameters, 44% win rate on TTS Arena
-- **Parler-TTS**: Controllable voice with text descriptions (880M/2.3B)
-- **Chatterbox**: Fast, efficient, natural speech (500M)
-
-### 🔊 **Audio Enhancement**
-- Noise reduction using spectral gating
-- Automatic normalization and trimming
-- Fade in/out for smooth transitions
-- Professional broadcast-quality output
-
-### 🔌 **MCP Server Integration**
-- Standardized text-to-speech API
-- Compatible with Claude Desktop, Cursor, Cline
-- Automated workflow integration
-- Real-time voice generation
-
-### 🎬 **YouTube-Optimized**
-- Segment-based script processing
-- Automatic audio combining
-- Gap management between segments
-- Export-ready audio files
-
----
-
-## 🤔 Why This Solution?
-
-### Traditional Approach vs. Our Solution
-
-| Aspect | Traditional (ElevenLabs) | Our Solution |
-|--------|-------------------------|--------------|
-| **Cost** | $22-99/month | Free (open-source) |
-| **Quality** | Excellent | Comparable (Kokoro) |
-| **Control** | Limited | Complete |
-| **Privacy** | Cloud-based | Local |
-| **Customization** | API limits | Unlimited |
-| **Latency** | API dependent | Local (faster) |
-
-### Technical Advantages
-
-1. **No Vendor Lock-in**: Own your voice generation pipeline
-2. **Scalability**: Run on your infrastructure, scale as needed
-3. **Customization**: Mix voices, adjust parameters, enhance audio
-4. **Integration**: MCP protocol for seamless AI workflows
-
----
-
-## 🚀 Quick Start
-
-### 5-Minute Setup
-
-```bash
-# 1. Create virtual environment
-python -m venv tts_env
-source tts_env/bin/activate  # Windows: tts_env\Scripts\activate
-
-# 2. Install dependencies
-pip install kokoro>=0.9.2 soundfile librosa numpy scipy
-
-# 3. Install espeak (required)
-# Ubuntu/Debian:
-sudo apt-get install espeak-ng
-# macOS:
-brew install espeak
-# Windows: Download from http://espeak.sourceforge.net/
-
-# 4. Test it!
-python quick_test.py
-```
-
-### Quick Test Script
+This toolkit adds a professional audio processing pipeline on Kokoro generated TTS output:
 
 ```python
-# quick_test.py
-from kokoro import KPipeline
-import soundfile as sf
-import numpy as np
+# Without enhancement - raw Kokoro output
+audio = kokoro_pipeline(text)
 
-# Initialize
-pipeline = KPipeline(lang_code='a')  # 'a' = American English
-
-# Generate speech
-text = "Welcome to Aparsoft. We deploy AI solutions in 10 days."
-generator = pipeline(text, voice='am_michael', speed=1.0)
-
-# Combine audio chunks
-audio = np.concatenate([chunk for _, _, chunk in generator])
-
-# Save
-sf.write('test_output.wav', audio, 24000)
-print("✅ Success! Check test_output.wav")
-```
-
----
-
-## 📦 Installation
-
-### Prerequisites
-
-- Python 3.10 or higher
-- 4GB RAM minimum
-- 1GB disk space for models
-- `espeak-ng` system package
-
-### Step-by-Step Installation
-
-#### 1. **Clone or Download**
-
-```bash
-# If using git
-git clone https://github.com/aparsoft/youtube-tts.git
-cd youtube-tts
-
-# Or download and extract ZIP
-```
-
-#### 2. **Install Python Dependencies**
-
-```bash
-# Create virtual environment
-python -m venv tts_env
-source tts_env/bin/activate  # Windows: tts_env\Scripts\activate
-
-# Install core packages
-pip install kokoro>=0.9.2
-pip install soundfile librosa numpy scipy
-
-# For MCP server (optional)
-pip install fastmcp mcp
-
-# For advanced features (optional)
-pip install torch transformers
-```
-
-#### 3. **Install System Dependencies**
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get update
-sudo apt-get install espeak-ng ffmpeg
-```
-
-**macOS:**
-```bash
-brew install espeak ffmpeg
-```
-
-**Windows:**
-- Download espeak from: http://espeak.sourceforge.net/
-- Download ffmpeg from: https://ffmpeg.org/download.html
-- Add to PATH
-
-#### 4. **Verify Installation**
-
-```bash
-python -c "from kokoro import KPipeline; print('✅ Kokoro installed')"
-python -c "import librosa; print('✅ Librosa installed')"
-python -c "import soundfile; print('✅ Soundfile installed')"
-```
-
----
-
-## 💻 Usage
-
-### Basic Usage
-
-#### **Option 1: Simple Script**
-
-```python
-from kokoro import KPipeline
-import soundfile as sf
-import numpy as np
-
-# Initialize pipeline
-pipeline = KPipeline(lang_code='a')
-
-# Your text
-text = """
-Hi, I'm from Aparsoft. In this tutorial, 
-we'll show you how to deploy AI chatbots in just 10 days.
-"""
-
-# Generate speech
-generator = pipeline(text, voice='am_michael', speed=1.0)
-audio = np.concatenate([chunk for _, _, chunk in generator])
-
-# Save to file
-sf.write('output.wav', audio, 24000)
-```
-
-#### **Option 2: Using Our YouTube TTS Class**
-
-```python
-from youtube_tts import YouTubeTTS
-
-# Initialize with male voice
-tts = YouTubeTTS(voice='am_michael', lang_code='a')
-
-# Generate with enhancement
-tts.text_to_speech(
-    text="Your script here",
-    output_file="voiceover.wav",
-    speed=1.0,
-    enhance_audio=True  # Applies librosa enhancement
+# With enhancement - broadcast-ready
+audio = enhance_audio(
+    kokoro_output,
+    normalize=True,        # Consistent volume
+    trim_silence=True,     # Remove dead air
+    noise_reduction=True,  # Spectral gating
+    add_fade=True         # Smooth transitions
 )
 ```
 
-#### **Option 3: Batch Processing**
+**Result:** Voiceovers ready for YouTube, podcasts, or production use without additional audio editing.
 
-```python
-from youtube_tts import YouTubeTTS
+**MCP Server Integration:**
 
-tts = YouTubeTTS(voice='am_michael')
-
-scripts = [
-    "Welcome to our channel",
-    "In this video, we'll cover AI deployment",
-    "Don't forget to subscribe!"
-]
-
-tts.batch_generate(scripts, output_dir='outputs')
-# Creates: outputs/audio_1.wav, outputs/audio_2.wav, etc.
+Traditional workflow:
+```bash
+# 1. Write script in Claude/Cursor
+# 2. Copy text to terminal
+# 3. Run Python script
+# 4. Switch back to editor
+# 5. Repeat for each segment
 ```
 
-### Available Voices
+With MCP server:
+```bash
+# In Claude Desktop or Cursor:
+"Generate voiceover for this section using am_michael voice"
+# Done. Audio generated without leaving your workspace.
+```
 
-**Male Voices (Recommended for Aparsoft):**
-- `am_michael` - Professional American male ⭐ **Recommended**
-- `bm_george` - British male, formal
-- `am_adam` - American male, younger tone
+**Workflow Enhancement:**
 
-**Female Voices:**
-- `af_bella` - American female, warm
-- `af_heart` - American female, expressive
-- `bf_emma` - British female, professional
+- **Content creators**: Write scripts in AI editors, generate voiceovers inline
+- **Developers**: Generate test audio during development without context switching
+- **Teams**: Standardized TTS across tools (Claude, Cursor, CLI, API)
+- **Automation**: AI agents can generate audio as part of content pipelines
 
-**Test all voices:**
+**Production Features:**
+
+The toolkit wraps Kokoro with enterprise requirements:
+
+- **Configuration management** - Environment-based settings, no hardcoded values
+- **Structured logging** - JSON logs for aggregation, correlation IDs for tracing
+- **Error handling** - Custom exceptions, graceful failures, detailed error context
+- **Testing** - Comprehensive test suite, CI/CD integration
+- **Docker deployment** - Containerized with health checks, resource limits
+- **CLI interface** - Quick access without writing code
+
+### Use Cases
+
+**YouTube/Podcast Production:**
 ```python
-voices = ['am_michael', 'bm_george', 'am_adam']
-for voice in voices:
-    tts = YouTubeTTS(voice=voice)
-    tts.text_to_speech(f"Testing {voice} voice", f"{voice}_test.wav")
+# Process entire video script with proper gaps
+engine.process_script("script.txt", "voiceover.wav", gap_duration=0.5)
+```
+
+**AI-Assisted Content Creation:**
+```
+# In Claude Desktop with MCP:
+User: "Generate a 30-second intro for my coding tutorial"
+Claude: *generates script and voiceover via MCP*
+```
+
+**Batch Content Generation:**
+```python
+# Generate 100 audio segments for e-learning course
+engine.batch_generate(lesson_texts, output_dir="lessons/")
+```
+
+**Development/Testing:**
+```bash
+# Quick CLI test during development
+aparsoft-tts generate "Test message" -o test.wav
 ```
 
 ---
 
-## 🔧 Complete Implementation
+## Quick Start
 
-### Main TTS Module (`youtube_tts.py`)
+### Installation
 
-```python
-import soundfile as sf
-from kokoro import KPipeline
-import librosa
-import numpy as np
-import os
-
-class YouTubeTTS:
-    """Production-ready TTS for YouTube videos"""
-    
-    def __init__(self, voice='am_michael', lang_code='a'):
-        """
-        Initialize TTS system
-        
-        Args:
-            voice: Voice ID (am_michael, bm_george, am_adam, etc.)
-            lang_code: 'a' for American, 'b' for British English
-        """
-        self.pipeline = KPipeline(lang_code=lang_code)
-        self.voice = voice
-        self.sample_rate = 24000
-        
-    def text_to_speech(self, text, output_file='output.wav', 
-                       speed=1.0, enhance_audio=True):
-        """
-        Convert text to speech
-        
-        Args:
-            text: Input text
-            output_file: Output filename
-            speed: Speech speed (0.5-2.0)
-            enhance_audio: Apply audio enhancement
-        
-        Returns:
-            Path to output file
-        """
-        # Generate speech
-        generator = self.pipeline(text, voice=self.voice, speed=speed)
-        
-        audio_chunks = []
-        for i, (graphemes, phonemes, audio) in enumerate(generator):
-            audio_chunks.append(audio)
-        
-        # Combine chunks
-        final_audio = np.concatenate(audio_chunks)
-        
-        # Enhance if requested
-        if enhance_audio:
-            final_audio = self.enhance_audio(final_audio)
-        
-        # Save
-        sf.write(output_file, final_audio, self.sample_rate)
-        print(f"✅ Generated: {output_file}")
-        
-        return output_file
-    
-    def enhance_audio(self, audio):
-        """
-        Enhance audio quality using librosa
-        
-        - Normalizes volume
-        - Removes silence
-        - Applies noise reduction
-        - Adds fade in/out
-        """
-        # Normalize
-        audio = librosa.util.normalize(audio)
-        
-        # Trim silence (20dB threshold)
-        audio, _ = librosa.effects.trim(audio, top_db=20)
-        
-        # Spectral noise reduction
-        stft = librosa.stft(audio)
-        magnitude = np.abs(stft)
-        phase = np.angle(stft)
-        
-        # Simple noise gate
-        noise_floor = np.percentile(magnitude, 10)
-        magnitude[magnitude < noise_floor] = 0
-        
-        # Reconstruct
-        enhanced_stft = magnitude * np.exp(1j * phase)
-        audio = librosa.istft(enhanced_stft)
-        
-        # Add subtle fade (100ms)
-        fade_samples = int(0.1 * self.sample_rate)
-        audio[:fade_samples] *= np.linspace(0, 1, fade_samples)
-        audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
-        
-        return audio
-    
-    def batch_generate(self, text_list, output_dir='outputs'):
-        """Generate multiple audio files"""
-        os.makedirs(output_dir, exist_ok=True)
-        
-        for i, text in enumerate(text_list):
-            output_file = f"{output_dir}/audio_{i+1:03d}.wav"
-            self.text_to_speech(text, output_file)
-        
-        print(f"✅ Generated {len(text_list)} files in {output_dir}")
-    
-    def process_script(self, script_file, output_file='complete_voiceover.wav'):
-        """
-        Process entire video script
-        
-        Reads script, splits by paragraphs, generates audio,
-        combines with gaps
-        """
-        # Read script
-        with open(script_file, 'r') as f:
-            script = f.read()
-        
-        # Split into segments
-        segments = [s.strip() for s in script.split('\n\n') if s.strip()]
-        
-        # Generate segments
-        audio_segments = []
-        gap = np.zeros(int(0.5 * self.sample_rate))  # 500ms gap
-        
-        for i, segment in enumerate(segments):
-            print(f"Processing segment {i+1}/{len(segments)}...")
-            
-            generator = self.pipeline(segment, voice=self.voice)
-            segment_audio = np.concatenate([a for _, _, a in generator])
-            segment_audio = self.enhance_audio(segment_audio)
-            
-            audio_segments.append(segment_audio)
-            if i < len(segments) - 1:  # No gap after last segment
-                audio_segments.append(gap)
-        
-        # Combine all
-        final_audio = np.concatenate(audio_segments)
-        sf.write(output_file, final_audio, self.sample_rate)
-        
-        print(f"✅ Complete voiceover: {output_file}")
-        return output_file
-
-
-# Usage Examples
-if __name__ == "__main__":
-    # Example 1: Simple generation
-    tts = YouTubeTTS(voice='am_michael')
-    tts.text_to_speech(
-        "Welcome to Aparsoft's YouTube channel",
-        "intro.wav"
-    )
-    
-    # Example 2: Process full script
-    script = """
-    Hi, I'm from Aparsoft, and today we're going to show you 
-    how to deploy AI solutions in just 10 days.
-    
-    First, let's understand our Quick AI Solutions approach.
-    
-    Unlike traditional consultancy, we use pre-built modules.
-    
-    Subscribe for more AI tutorials!
-    """
-    
-    with open('script.txt', 'w') as f:
-        f.write(script)
-    
-    tts.process_script('script.txt', 'final_voiceover.wav')
-```
-
----
-
-## 🔌 MCP Server Setup
-
-### What is MCP?
-
-Model Context Protocol (MCP) is a standardized way for AI applications to interact with external tools and data sources. Our TTS MCP server allows Claude Desktop, Cursor, and other AI tools to generate speech on demand.
-
-### MCP Server Implementation
-
-Create `tts_mcp_server.py`:
-
-```python
-from mcp.server import Server
-from mcp.types import Tool, TextContent
-import mcp.server.stdio
-from kokoro import KPipeline
-import soundfile as sf
-import numpy as np
-import librosa
-import asyncio
-
-# Initialize MCP server
-app = Server("aparsoft-tts-server")
-
-# Initialize TTS pipeline
-pipeline = KPipeline(lang_code='a')
-
-@app.list_tools()
-async def list_tools() -> list[Tool]:
-    """List available TTS tools"""
-    return [
-        Tool(
-            name="generate_speech",
-            description="Generate high-quality speech from text using Kokoro TTS with audio enhancement",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "text": {
-                        "type": "string",
-                        "description": "Text to convert to speech"
-                    },
-                    "voice": {
-                        "type": "string",
-                        "description": "Voice ID: am_michael (default), bm_george, am_adam, af_bella",
-                        "default": "am_michael"
-                    },
-                    "speed": {
-                        "type": "number",
-                        "description": "Speech speed (0.5-2.0)",
-                        "default": 1.0,
-                        "minimum": 0.5,
-                        "maximum": 2.0
-                    },
-                    "output_file": {
-                        "type": "string",
-                        "description": "Output filename (default: output.wav)",
-                        "default": "output.wav"
-                    },
-                    "enhance": {
-                        "type": "boolean",
-                        "description": "Apply audio enhancement",
-                        "default": True
-                    }
-                },
-                "required": ["text"]
-            }
-        ),
-        Tool(
-            name="list_voices",
-            description="List all available voices",
-            inputSchema={
-                "type": "object",
-                "properties": {}
-            }
-        )
-    ]
-
-@app.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Handle tool calls"""
-    
-    if name == "list_voices":
-        voices = {
-            "Male Voices": [
-                "am_michael - Professional American male (recommended)",
-                "bm_george - British male, formal",
-                "am_adam - American male, younger"
-            ],
-            "Female Voices": [
-                "af_bella - American female, warm",
-                "af_heart - American female, expressive",
-                "bf_emma - British female, professional"
-            ]
-        }
-        
-        result = "Available Voices:\n\n"
-        for category, voice_list in voices.items():
-            result += f"{category}:\n"
-            for voice in voice_list:
-                result += f"  - {voice}\n"
-            result += "\n"
-        
-        return [TextContent(type="text", text=result)]
-    
-    elif name == "generate_speech":
-        text = arguments["text"]
-        voice = arguments.get("voice", "am_michael")
-        speed = arguments.get("speed", 1.0)
-        output_file = arguments.get("output_file", "output.wav")
-        enhance = arguments.get("enhance", True)
-        
-        try:
-            # Generate speech
-            generator = pipeline(text, voice=voice, speed=speed)
-            audio_chunks = []
-            
-            for _, _, audio in generator:
-                audio_chunks.append(audio)
-            
-            final_audio = np.concatenate(audio_chunks)
-            
-            # Enhance if requested
-            if enhance:
-                # Normalize
-                final_audio = librosa.util.normalize(final_audio)
-                # Trim silence
-                final_audio, _ = librosa.effects.trim(final_audio, top_db=20)
-                # Add fade
-                fade_samples = int(0.1 * 24000)
-                final_audio[:fade_samples] *= np.linspace(0, 1, fade_samples)
-                final_audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
-            
-            # Save
-            sf.write(output_file, final_audio, 24000)
-            
-            duration = len(final_audio) / 24000
-            
-            return [TextContent(
-                type="text",
-                text=f"✅ Speech generated successfully!\n\nFile: {output_file}\nVoice: {voice}\nDuration: {duration:.1f}s\nEnhanced: {enhance}"
-            )]
-            
-        except Exception as e:
-            return [TextContent(
-                type="text",
-                text=f"❌ Error generating speech: {str(e)}"
-            )]
-    
-    raise ValueError(f"Unknown tool: {name}")
-
-async def main():
-    """Run the MCP server"""
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-### Configure MCP in Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows):
-
-```json
-{
-  "mcpServers": {
-    "aparsoft-tts": {
-      "command": "/path/to/tts_env/bin/python",
-      "args": ["/path/to/tts_mcp_server.py"]
-    }
-  }
-}
-```
-
-### Configure MCP in Cursor
-
-Add to `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "aparsoft-tts": {
-      "command": "/path/to/tts_env/bin/python",
-      "args": ["/path/to/tts_mcp_server.py"]
-    }
-  }
-}
-```
-
-### Using the MCP Server
-
-Once configured, you can use it in Claude Desktop or Cursor:
-
-```
-"Can you generate speech for: 'Welcome to Aparsoft's channel' 
-using the am_michael voice and save it as intro.wav?"
-```
-
-The AI will automatically call the MCP server tool to generate the audio!
-
----
-
-## 🎨 Advanced Features
-
-### 1. Voice Mixing
-
-Create unique voices by mixing existing ones:
-
-```python
-import torch
-from kokoro import KPipeline
-import numpy as np
-import soundfile as sf
-
-def mix_voices(text, output_file='mixed.wav'):
-    """Mix multiple voices for unique sound"""
-    
-    # Load voice packs
-    voice1 = torch.load('voices/am_michael.pt')
-    voice2 = torch.load('voices/bm_george.pt')
-    
-    # Mix (70% Michael, 30% George)
-    mixed_voice = (voice1 * 0.7 + voice2 * 0.3) / 1.0
-    
-    # Generate with mixed voice
-    pipeline = KPipeline(lang_code='a')
-    generator = pipeline(text, voice=mixed_voice)
-    
-    audio = np.concatenate([a for _, _, a in generator])
-    sf.write(output_file, audio, 24000)
-
-# Usage
-mix_voices("This is a custom mixed voice", "custom_voice.wav")
-```
-
-### 2. Advanced Audio Processing
-
-```python
-import librosa
-import numpy as np
-from scipy import signal
-
-def advanced_enhancement(audio, sr=24000):
-    """Advanced audio enhancement"""
-    
-    # 1. Normalize
-    audio = librosa.util.normalize(audio)
-    
-    # 2. High-pass filter (remove low-frequency rumble)
-    sos = signal.butter(10, 80, 'hp', fs=sr, output='sos')
-    audio = signal.sosfilt(sos, audio)
-    
-    # 3. De-essing (reduce harsh 's' sounds)
-    sos_deess = signal.butter(5, [4000, 8000], 'bandstop', fs=sr, output='sos')
-    audio = signal.sosfilt(sos_deess, audio)
-    
-    # 4. Compression (even out volume)
-    threshold = 0.3
-    ratio = 3.0
-    audio_abs = np.abs(audio)
-    compressed = np.where(
-        audio_abs > threshold,
-        threshold + (audio_abs - threshold) / ratio,
-        audio_abs
-    )
-    audio = np.sign(audio) * compressed
-    
-    # 5. Final normalization
-    audio = librosa.util.normalize(audio)
-    
-    return audio
-```
-
-### 3. Segment-Based Video Production
-
-```python
-class VideoVoiceoverProducer:
-    """Advanced video voiceover production"""
-    
-    def __init__(self, voice='am_michael'):
-        self.tts = YouTubeTTS(voice=voice)
-    
-    def create_from_timestamps(self, script_with_timestamps, output_dir='segments'):
-        """
-        Process script with timestamps
-        
-        Format:
-        [00:00] Welcome to our channel
-        [00:05] In this video, we'll show you...
-        [00:15] First, let's understand...
-        """
-        import os
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # Parse script
-        segments = []
-        for line in script_with_timestamps.split('\n'):
-            if line.strip() and line.startswith('['):
-                timestamp = line[1:6]  # Extract HH:MM
-                text = line[8:].strip()  # Extract text
-                segments.append((timestamp, text))
-        
-        # Generate audio for each segment
-        for i, (timestamp, text) in enumerate(segments):
-            output_file = f"{output_dir}/segment_{timestamp.replace(':', '_')}.wav"
-            self.tts.text_to_speech(text, output_file)
-            print(f"✅ Generated: {timestamp} - {output_file}")
-        
-        return segments
-
-# Usage
-producer = VideoVoiceoverProducer()
-script = """
-[00:00] Welcome to Aparsoft's YouTube channel
-[00:05] Today we're showing you Quick AI Solutions
-[00:10] Deploy in just 10 days
-[00:15] Subscribe for more tutorials
-"""
-producer.create_from_timestamps(script)
-```
-
-### 4. Real-time Streaming (for live applications)
-
-```python
-import queue
-import threading
-
-class StreamingTTS:
-    """Generate and stream audio in real-time"""
-    
-    def __init__(self):
-        self.pipeline = KPipeline(lang_code='a')
-        self.audio_queue = queue.Queue()
-    
-    def generate_stream(self, text, voice='am_michael'):
-        """Generate audio chunks in real-time"""
-        generator = self.pipeline(text, voice=voice)
-        
-        for _, _, audio in generator:
-            self.audio_queue.put(audio)
-        
-        self.audio_queue.put(None)  # Signal end
-    
-    def play_stream(self):
-        """Play audio as it's generated"""
-        import sounddevice as sd
-        
-        while True:
-            chunk = self.audio_queue.get()
-            if chunk is None:
-                break
-            sd.play(chunk, 24000)
-            sd.wait()
-
-# Usage
-streamer = StreamingTTS()
-
-# Start generation in background
-threading.Thread(
-    target=streamer.generate_stream,
-    args=("This is streaming speech", "am_michael")
-).start()
-
-# Play as it's generated
-streamer.play_stream()
-```
-
----
-
-## 📚 API Reference
-
-### YouTubeTTS Class
-
-#### `__init__(voice='am_michael', lang_code='a')`
-
-Initialize TTS system.
-
-**Parameters:**
-- `voice` (str): Voice ID
-- `lang_code` (str): Language code ('a' = American, 'b' = British)
-
-#### `text_to_speech(text, output_file='output.wav', speed=1.0, enhance_audio=True)`
-
-Generate speech from text.
-
-**Parameters:**
-- `text` (str): Input text
-- `output_file` (str): Output filename
-- `speed` (float): Speech speed (0.5-2.0)
-- `enhance_audio` (bool): Apply enhancement
-
-**Returns:** Path to output file
-
-#### `enhance_audio(audio)`
-
-Enhance audio quality.
-
-**Parameters:**
-- `audio` (numpy.ndarray): Audio array
-
-**Returns:** Enhanced audio array
-
-#### `batch_generate(text_list, output_dir='outputs')`
-
-Generate multiple audio files.
-
-**Parameters:**
-- `text_list` (list): List of text strings
-- `output_dir` (str): Output directory
-
-#### `process_script(script_file, output_file='complete_voiceover.wav')`
-
-Process complete video script.
-
-**Parameters:**
-- `script_file` (str): Path to script file
-- `output_file` (str): Output filename
-
-**Returns:** Path to output file
-
----
-
-## 📊 Model Comparison
-
-| Model | Quality Score | Speed | Parameters | License | Best For |
-|-------|--------------|-------|------------|---------|----------|
-| **Kokoro-82M** | 44% (TTS Arena) | ⚡⚡⚡⚡ | 82M | Apache 2.0 | YouTube videos ⭐ |
-| Parler-TTS Mini | High | ⚡⚡⚡ | 880M | Apache 2.0 | Controllable voice |
-| Parler-TTS Large | Very High | ⚡⚡ | 2.3B | Apache 2.0 | Maximum quality |
-| Chatterbox | High | ⚡⚡⚡⚡⚡ | 500M | Apache 2.0 | Fast generation |
-| MMS | Good | ⚡⚡⚡ | Varies | CC-BY-NC 4.0 | Multilingual |
-
-### Quality Metrics
-
-Based on TTS Arena community voting (October 2025):
-
-- **Kokoro-82M**: 44% win rate
-- **Parler-TTS**: High naturalness, excellent controllability
-- **Chatterbox**: 42% win rate, fastest inference
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### 1. **"ModuleNotFoundError: No module named 'kokoro'"**
+**System Dependencies:**
 
 ```bash
-# Solution: Install kokoro
-pip install kokoro>=0.9.2
+# Ubuntu/Debian
+sudo apt-get install espeak-ng ffmpeg libsndfile1
 
-# Verify installation
-python -c "from kokoro import KPipeline; print('✅ Success')"
+# macOS
+brew install espeak ffmpeg
+
+# Windows: Download from
+# - espeak-ng: http://espeak.sourceforge.net/
+# - ffmpeg: https://ffmpeg.org/download.html
 ```
 
-#### 2. **"espeak-ng not found"**
+**Python Package:**
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install with all features
+pip install -e ".[mcp,cli]"
+```
+
+### Basic Usage
+
+```python
+from aparsoft_tts import TTSEngine
+
+# Initialize engine
+engine = TTSEngine()
+
+# Generate speech
+engine.generate(
+    text="Welcome to Kokoro YouTube TTS",
+    output_path="output.wav"
+)
+```
+
+### CLI Usage
+
+```bash
+# Generate audio
+aparsoft-tts generate "Hello world" -o output.wav
+
+# List available voices
+aparsoft-tts voices
+
+# Process video script
+aparsoft-tts script video_script.txt -o voiceover.wav
+
+# Batch generate
+aparsoft-tts batch "Intro" "Body" "Outro" -d segments/
+```
+
+---
+
+## Available Voices
+
+**Male Voices:**
+- `am_michael` - American male (professional, recommended)
+- `bm_george` - British male (formal)
+- `am_adam` - American male (younger)
+
+**Female Voices:**
+- `af_bella` - American female (warm)
+- `af_heart` - American female (expressive)
+- `bf_emma` - British female (professional)
+
+**Language Support:**
+- 🇺🇸 American English (`lang_code='a'`)
+- 🇬🇧 British English (`lang_code='b'`)
+
+---
+
+## Advanced Usage
+
+### Custom Configuration
+
+```python
+from aparsoft_tts import TTSEngine, TTSConfig
+
+# Create custom configuration
+config = TTSConfig(
+    voice="bm_george",
+    speed=1.2,
+    enhance_audio=True,
+    fade_duration=0.2
+)
+
+engine = TTSEngine(config=config)
+engine.generate("Custom configuration", "output.wav")
+```
+
+### Audio Enhancement
+
+```python
+from aparsoft_tts.utils.audio import enhance_audio
+
+# Generate raw audio
+audio = engine.generate("Test audio")
+
+# Apply custom enhancement
+enhanced = enhance_audio(
+    audio,
+    sample_rate=24000,
+    normalize=True,
+    trim_silence=True,
+    trim_db=25.0,
+    noise_reduction=True,
+    add_fade=True,
+    fade_duration=0.15
+)
+```
+
+### Batch Processing
+
+```python
+# Process multiple texts
+texts = [
+    "Welcome to the tutorial",
+    "Let's explore the features",
+    "Thanks for watching"
+]
+
+paths = engine.batch_generate(
+    texts=texts,
+    output_dir="segments/",
+    voice="am_michael"
+)
+```
+
+### Script Processing
+
+```python
+# Process complete video script
+engine.process_script(
+    script_path="video_script.txt",
+    output_path="complete_voiceover.wav",
+    gap_duration=0.5,  # Gap between paragraphs
+    voice="am_michael",
+    speed=1.0
+)
+```
+
+### Streaming Generation
+
+```python
+# Generate audio in chunks
+for chunk in engine.generate_stream(
+    text="Long text for streaming...",
+    voice="am_michael"
+):
+    # Process chunk as it's generated
+    process_audio_chunk(chunk)
+```
+
+---
+
+## Model Context Protocol (MCP) Integration
+
+The MCP server enables AI assistants like Claude Desktop and Cursor to generate speech directly.
+
+### Setup for Claude Desktop
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+**Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+
+**Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "aparsoft-tts": {
+      "command": "/path/to/venv/bin/python",
+      "args": ["-m", "aparsoft_tts.mcp_server"]
+    }
+  }
+}
+```
+
+### Setup for Cursor
+
+**Config file:** `~/.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "aparsoft-tts": {
+      "command": "/path/to/venv/bin/python",
+      "args": ["-m", "aparsoft_tts.mcp_server"]
+    }
+  }
+}
+```
+
+### MCP Tools
+
+The MCP server provides four tools:
+
+1. **generate_speech**: Create audio from text with voice and speed options
+2. **list_voices**: Show all available voices
+3. **batch_generate**: Process multiple texts
+4. **process_script**: Convert complete scripts to audio
+
+### Using MCP
+
+Once configured, ask Claude or Cursor:
+
+```
+"Generate speech for 'Welcome to my channel' using the am_michael voice"
+"List all available TTS voices"
+"Process this script file and create a voiceover"
+```
+
+The AI will use the MCP server to generate audio automatically.
+
+---
+
+## Docker Deployment
+
+### Build and Run
+
+```bash
+# Build image
+docker build -t aparsoft-tts:latest .
+
+# Run MCP server
+docker run -d \
+  --name aparsoft-tts \
+  -v $(pwd)/outputs:/app/outputs \
+  -v $(pwd)/logs:/app/logs \
+  aparsoft-tts:latest
+
+# Run CLI commands
+docker run --rm \
+  -v $(pwd)/outputs:/app/outputs \
+  aparsoft-tts:latest \
+  aparsoft-tts generate "Docker test" -o /app/outputs/test.wav
+```
+
+### Docker Compose
+
+```bash
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Environment Variables
+
+```bash
+# TTS Configuration
+TTS_VOICE=am_michael
+TTS_SPEED=1.0
+TTS_ENHANCE_AUDIO=true
+
+# MCP Server
+MCP_SERVER_NAME=aparsoft-tts-server
+MCP_ENABLE_RATE_LIMITING=true
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+---
+
+## Project Structure
+
+```
+youtube-creator/
+├── aparsoft_tts/
+│   ├── core/
+│   │   └── engine.py          # TTS engine
+│   ├── utils/
+│   │   ├── audio.py           # Audio processing with librosa
+│   │   ├── logging.py         # Structured logging
+│   │   └── exceptions.py      # Custom exceptions
+│   ├── config.py              # Configuration management
+│   ├── cli.py                 # CLI interface
+│   └── mcp_server.py          # MCP server (FastMCP)
+├── tests/
+│   ├── unit/                  # Unit tests
+│   └── integration/           # Integration tests
+├── examples/                  # Usage examples
+├── pyproject.toml             # Project metadata
+├── Dockerfile                 # Docker configuration
+└── docker-compose.yml         # Docker Compose config
+```
+
+---
+
+## Audio Processing
+
+The toolkit enhances Kokoro's output with professional audio processing:
+
+**Features:**
+- Normalization: Consistent volume levels
+- Silence Trimming: Remove quiet sections (configurable threshold)
+- Noise Reduction: Spectral gating for cleaner audio
+- Fade In/Out: Smooth transitions, prevents clicks
+- Custom Processing: Extensible with librosa/scipy
+
+**Enhancement Pipeline:**
+
+```python
+from aparsoft_tts.utils.audio import enhance_audio, save_audio
+
+# Generate raw audio
+audio = engine.generate("Your text here")
+
+# Apply enhancement pipeline
+enhanced = enhance_audio(
+    audio,
+    sample_rate=24000,
+    normalize=True,      # Normalize volume
+    trim_silence=True,   # Trim silence
+    trim_db=20.0,        # Threshold in dB
+    noise_reduction=True,  # Apply noise gate
+    add_fade=True,       # Add fade in/out
+    fade_duration=0.1    # 100ms fade
+)
+
+# Save enhanced audio
+save_audio(enhanced, "enhanced.wav", sample_rate=24000)
+```
+
+---
+
+## Configuration
+
+### Using Configuration Files
+
+```python
+from aparsoft_tts import TTSConfig, MCPConfig, LoggingConfig, Config
+
+# TTS settings
+tts_config = TTSConfig(
+    voice="am_michael",
+    speed=1.0,
+    enhance_audio=True,
+    sample_rate=24000,
+    output_format="wav"
+)
+
+# MCP server settings
+mcp_config = MCPConfig(
+    server_name="aparsoft-tts-production",
+    enable_rate_limiting=True,
+    rate_limit_calls=100
+)
+
+# Logging settings
+logging_config = LoggingConfig(
+    level="INFO",
+    format="json",
+    output="file"
+)
+
+# Combined configuration
+config = Config(
+    tts=tts_config,
+    mcp=mcp_config,
+    logging=logging_config
+)
+```
+
+### Environment Variables
+
+Create `.env` file:
+
+```env
+# TTS Settings
+TTS_VOICE=am_michael
+TTS_SPEED=1.0
+TTS_ENHANCE_AUDIO=true
+TTS_SAMPLE_RATE=24000
+
+# Audio Processing
+TTS_TRIM_SILENCE=true
+TTS_TRIM_DB=20.0
+TTS_FADE_DURATION=0.1
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=console
+LOG_OUTPUT=stdout
+```
+
+---
+
+## Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=aparsoft_tts --cov-report=html
+
+# Run specific test file
+pytest tests/unit/test_engine.py
+
+# Run only fast tests
+pytest -m "not slow"
+```
+
+---
+
+## Development
+
+### Setup Development Environment
+
+```bash
+# Clone repository
+git clone https://github.com/aparsoft/kokoro-youtube-tts.git
+cd kokoro-youtube-tts
+
+# Install with dev dependencies
+pip install -e ".[dev,mcp,cli,all]"
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+### Running CI Locally
+
+The project includes GitHub Actions workflow for CI/CD:
+- Code quality checks (Black, Ruff, mypy)
+- Tests on multiple Python versions (3.10, 3.11, 3.12)
+- Docker build verification
+- Security scanning with Trivy
+
+---
+
+## API Reference
+
+### TTSEngine
+
+**Initialization:**
+```python
+TTSEngine(config: TTSConfig | None = None)
+```
+
+**Methods:**
+
+- `generate(text, output_path, voice, speed, enhance)` - Generate speech
+- `generate_stream(text, voice, speed)` - Stream audio chunks
+- `batch_generate(texts, output_dir, voice, speed)` - Batch processing
+- `process_script(script_path, output_path, gap_duration, voice, speed)` - Process scripts
+- `list_voices()` - Get available voices
+
+### Configuration Classes
+
+- `TTSConfig` - TTS engine settings
+- `MCPConfig` - MCP server configuration
+- `LoggingConfig` - Logging configuration
+- `Config` - Main application configuration
+
+### Audio Utilities
+
+- `enhance_audio(audio, ...)` - Apply audio enhancement
+- `combine_audio_segments(segments, ...)` - Combine audio files
+- `save_audio(audio, path, ...)` - Save audio to file
+- `load_audio(path, ...)` - Load audio from file
+- `chunk_audio(audio, ...)` - Split audio into chunks
+- `get_audio_duration(audio, ...)` - Get audio duration
+
+---
+
+## Examples
+
+See the `examples/` directory for complete examples:
+
+- `basic_usage.py` - Simple generation examples
+- `youtube_workflow.py` - Complete YouTube video production workflow
+
+---
+
+## Troubleshooting
+
+### espeak-ng not found
 
 ```bash
 # Ubuntu/Debian
@@ -942,217 +626,127 @@ brew install espeak
 # Windows: Download from http://espeak.sourceforge.net/
 ```
 
-#### 3. **Audio quality issues**
+### Audio quality issues
 
+Enable audio enhancement:
 ```python
-# Increase enhancement
-tts = YouTubeTTS()
-tts.text_to_speech(
-    text="Your text",
-    enhance_audio=True  # Make sure this is True
-)
-
-# Or use advanced enhancement
-from youtube_tts import advanced_enhancement
-enhanced = advanced_enhancement(audio)
+engine.generate(text="Your text", enhance=True)
 ```
 
-#### 4. **"RuntimeError: No audio backend is available"**
+### Import errors
 
+Ensure virtual environment is activated:
 ```bash
-# Install audio backend
-pip install sounddevice
-
-# On Ubuntu
-sudo apt-get install portaudio19-dev python3-pyaudio
-
-# On macOS
-brew install portaudio
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
 ```
 
-#### 5. **MCP server not connecting**
+### Docker issues
 
+Check container logs:
 ```bash
-# Check Python path
-which python
-
-# Verify server runs
-python tts_mcp_server.py
-
-# Check config file
-cat ~/.cursor/mcp.json
-# or
-cat ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-#### 6. **Slow generation**
-
-```python
-# Use CUDA if available
-import torch
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using device: {device}")
-
-# Or use faster model
-tts = YouTubeTTS(voice='am_michael')  # Kokoro is already fast
-```
-
-### Performance Tips
-
-1. **Batch Processing**: Process multiple segments together
-2. **GPU Acceleration**: Use CUDA for faster processing
-3. **Cache Voices**: Load voice models once, reuse
-4. **Optimize Audio**: Use `enhance_audio=False` for faster generation (draft mode)
-
----
-
-## 🎯 Production Workflow for Aparsoft YouTube
-
-### Complete Video Production Pipeline
-
-```python
-# aparsoft_video_pipeline.py
-
-from youtube_tts import YouTubeTTS
-import os
-
-class AparsoftVideoPipeline:
-    """Complete pipeline for Aparsoft YouTube videos"""
-    
-    def __init__(self):
-        self.tts = YouTubeTTS(voice='am_michael')
-    
-    def create_tutorial_voiceover(self, tutorial_title, script_sections):
-        """
-        Create voiceover for tutorial video
-        
-        Args:
-            tutorial_title: Video title
-            script_sections: Dict of {section_name: script_text}
-        """
-        output_dir = f"tutorials/{tutorial_title.replace(' ', '_')}"
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # 1. Generate intro
-        intro_text = f"Welcome to Aparsoft. In this tutorial: {tutorial_title}"
-        self.tts.text_to_speech(
-            intro_text, 
-            f"{output_dir}/00_intro.wav"
-        )
-        
-        # 2. Generate sections
-        for i, (section, text) in enumerate(script_sections.items(), 1):
-            self.tts.text_to_speech(
-                text,
-                f"{output_dir}/{i:02d}_{section}.wav"
-            )
-        
-        # 3. Generate outro
-        outro_text = "Thanks for watching! Subscribe for more AI tutorials from Aparsoft."
-        self.tts.text_to_speech(
-            outro_text,
-            f"{output_dir}/99_outro.wav"
-        )
-        
-        print(f"✅ Complete voiceover ready in: {output_dir}")
-        return output_dir
-
-# Usage
-pipeline = AparsoftVideoPipeline()
-
-tutorial = pipeline.create_tutorial_voiceover(
-    tutorial_title="Deploy Django AI Chatbot in 10 Days",
-    script_sections={
-        "setup": "First, let's set up our Django environment...",
-        "ai_integration": "Next, we'll integrate the AI model...",
-        "deployment": "Finally, we'll deploy to production..."
-    }
-)
+docker logs aparsoft-tts
 ```
 
 ---
 
-## 🤝 Contributing
+## Performance
 
-We welcome contributions! Here's how:
+**Benchmarks** (on typical consumer hardware):
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+- Model Loading: ~2-3 seconds (one-time)
+- Generation Speed: ~0.5s per second of audio
+- Memory Usage: ~2GB RAM (model loaded)
 
-### Development Setup
+**Optimization Tips:**
 
-```bash
-# Clone repo
-git clone https://github.com/aparsoft/youtube-tts.git
-cd youtube-tts
-
-# Install in development mode
-pip install -e .
-
-# Run tests
-pytest tests/
-
-# Format code
-black .
-```
+1. Reuse engine instances (avoid reloading model)
+2. Disable enhancement for draft generations (`enhance=False`)
+3. Use streaming for long texts
+4. Batch process multiple files
+5. Enable GPU acceleration on supported platforms
 
 ---
 
-## 📄 License
+## Credits & Acknowledgements
+
+This project builds upon excellent open-source software:
+
+### Core Dependencies
+
+- **[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)** by hexgrad - Apache License 2.0
+  - Open-weight TTS model with 82M parameters
+  - Architectured by @yl4579 (StyleTTS 2)
+
+- **[librosa](https://librosa.org/)** - ISC License
+  - Audio analysis and processing
+
+- **[FastMCP](https://github.com/jlowin/fastmcp)** - MIT License
+  - Model Context Protocol server framework
+
+### Additional Dependencies
+
+- **soundfile** - Audio I/O
+- **pydantic** - Configuration management
+- **structlog** - Structured logging
+- **typer** - CLI framework
+- **pytest** - Testing framework
+
+### Special Thanks
+
+- 🛠️ @yl4579 for StyleTTS 2 architecture
+- 🏆 hexgrad team for Kokoro model and inference library
+- 🌐 Anthropic for Model Context Protocol
+- 📊 All contributors to the open-source dependencies
+
+---
+
+## License
 
 This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
 
-### Third-Party Licenses
-
-- **Kokoro-82M**: Apache License 2.0
-- **Librosa**: ISC License
-- **FastMCP**: MIT License
-
----
-
-## 🙏 Acknowledgments
-
-- **Kokoro Team** at hexgrad for the excellent TTS model
-- **Anthropic** for Model Context Protocol
-- **Hugging Face** for hosting models and community
-- **Librosa developers** for audio processing tools
+**Third-Party Licenses:**
+- Kokoro-82M: Apache License 2.0
+- librosa: ISC License
+- FastMCP: MIT License
 
 ---
 
-## 📞 Support & Contact
+## Support
 
 - **Email**: contact@aparsoft.com
 - **Phone**: +91 8904064878
 - **Website**: https://aparsoft.com
-- **YouTube**: [Aparsoft Channel](https://youtube.com/@aparsoft)
+- **Issues**: [GitHub Issues](https://github.com/aparsoft/kokoro-youtube-tts/issues)
 
 ---
 
-## 🚀 What's Next?
+## Citation
 
-- [ ] Add more voice customization options
-- [ ] Implement voice cloning
-- [ ] Add multi-language support
-- [ ] Create web UI for non-technical users
-- [ ] Integrate with video editing tools
+If you use this toolkit in your research or project, please cite:
+
+```bibtex
+@software{kokoro_youtube_tts,
+  author = {Aparsoft},
+  title = {Kokoro YouTube TTS: Production-Ready TTS Toolkit},
+  year = {2025},
+  url = {https://github.com/aparsoft/kokoro-youtube-tts}
+}
+```
+
+For the Kokoro model:
+
+```bibtex
+@software{kokoro_tts,
+  author = {hexgrad},
+  title = {Kokoro-82M: Open-weight TTS Model},
+  year = {2024},
+  url = {https://huggingface.co/hexgrad/Kokoro-82M}
+}
+```
 
 ---
 
-## 📈 Project Stats
+**Built with ❤️ for the YouTube creator community**
 
-- ⭐ **Models Used**: Kokoro-82M (82M params, #1 on HF)
-- 🎤 **Voices Available**: 50+ across 8 languages
-- ⚡ **Generation Speed**: Real-time (1s audio = 0.5s generation)
-- 💰 **Cost**: $0 (100% open-source)
-- 📊 **Quality**: 44% win rate on TTS Arena
-
----
-
-**Built with ❤️ by Aparsoft for the YouTube creator community**
-
----
-
-*Last Updated: October 2025*
+*Last Updated: January 2025*
