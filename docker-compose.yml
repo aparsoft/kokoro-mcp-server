@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # TTS Service
+  aparsoft-tts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    image: aparsoft-tts:latest
+    container_name: aparsoft-tts-server
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - TTS_VOICE=am_michael
+      - TTS_LANG_CODE=a
+      - TTS_ENHANCE_AUDIO=true
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+      - MCP_SERVER_NAME=aparsoft-tts-server
+
+    # Volumes for persistence
+    volumes:
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - ./scripts:/app/scripts:ro
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+    # Ports (if using HTTP transport)
+    # ports:
+    #   - "8000:8000"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from aparsoft_tts.core.engine import TTSEngine; TTSEngine()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: GPU-enabled service
+  # aparsoft-tts-gpu:
+  #   extends: aparsoft-tts
+  #   build:
+  #     target: gpu
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+volumes:
+  outputs:
+  logs:
