@@ -19,7 +19,7 @@ def enhance_audio(
     sample_rate: int = 24000,
     normalize: bool = True,
     trim_silence: bool = True,
-    trim_db: float = 20.0,
+    trim_db: float = 30.0,  # Less aggressive trimming (was 20.0, higher = gentler)
     add_fade: bool = True,
     fade_duration: float = 0.1,
     noise_reduction: bool = True,
@@ -63,9 +63,15 @@ def enhance_audio(
         if normalize:
             audio = librosa.util.normalize(audio)
 
-        # Trim silence
+        # Trim silence with gentler parameters
         if trim_silence:
-            audio, _ = librosa.effects.trim(audio, top_db=trim_db)
+            # Use smaller frame/hop lengths for better resolution (prevents voice cutoff)
+            audio, _ = librosa.effects.trim(
+                audio,
+                top_db=trim_db,
+                frame_length=512,   # Smaller for better resolution (default 2048)
+                hop_length=128      # Smaller for finer control (default 512)
+            )
 
         # Spectral noise reduction
         if noise_reduction:
@@ -137,13 +143,15 @@ def combine_audio_segments(
     segments: list[NDArray[np.float32]],
     sample_rate: int = 24000,
     gap_duration: float = 0.5,
+    crossfade_duration: float = 0.1,  # Increased from 0.05s for smoother transitions
 ) -> NDArray[np.float32]:
-    """Combine multiple audio segments with gaps.
+    """Combine multiple audio segments with gaps and smooth crossfades.
 
     Args:
         segments: List of audio arrays to combine
         sample_rate: Sample rate in Hz
         gap_duration: Gap duration between segments in seconds
+        crossfade_duration: Crossfade duration in seconds (prevents abrupt cuts)
 
     Returns:
         Combined audio array
@@ -162,12 +170,32 @@ def combine_audio_segments(
         if not segments:
             raise AudioProcessingError("No segments provided")
 
+        # Apply smooth fade out/in to each segment to prevent clicks
+        crossfade_samples = int(crossfade_duration * sample_rate)
+
+        processed_segments = []
+        for segment in segments:
+            segment = segment.astype(np.float32).copy()
+
+            # Apply gentle fade out at end (prevents abrupt cuts)
+            if len(segment) > crossfade_samples:
+                fade_out = np.linspace(1, 0, crossfade_samples)
+                segment[-crossfade_samples:] *= fade_out
+
+            # Apply gentle fade in at start (smooth beginning)
+            if len(segment) > crossfade_samples:
+                fade_in = np.linspace(0, 1, crossfade_samples)
+                segment[:crossfade_samples] *= fade_in
+
+            processed_segments.append(segment)
+
+        # Combine with gaps
         combined = []
         gap = np.zeros(int(gap_duration * sample_rate), dtype=np.float32)
 
-        for i, segment in enumerate(segments):
-            combined.append(segment.astype(np.float32))
-            if i < len(segments) - 1:  # No gap after last segment
+        for i, segment in enumerate(processed_segments):
+            combined.append(segment)
+            if i < len(processed_segments) - 1:  # No gap after last segment
                 combined.append(gap)
 
         result = np.concatenate(combined)

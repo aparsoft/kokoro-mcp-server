@@ -27,6 +27,10 @@ class TTSConfig(BaseSettings):
         default="a", description="Language code: 'a' for American, 'b' for British English"
     )
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed (0.5-2.0)")
+    repo_id: str = Field(
+        default="hexgrad/Kokoro-82M",
+        description="Hugging Face model repository ID"
+    )
 
     # Audio Processing
     sample_rate: int = Field(default=24000, description="Audio sample rate in Hz")
@@ -34,9 +38,37 @@ class TTSConfig(BaseSettings):
         default=True, description="Apply audio enhancement (normalization, trimming, etc.)"
     )
     trim_silence: bool = Field(default=True, description="Trim silence from audio")
-    trim_db: float = Field(default=20.0, description="dB threshold for silence trimming")
+    trim_db: float = Field(default=30.0, description="dB threshold for silence trimming (higher = gentler)")
     fade_duration: float = Field(
         default=0.1, ge=0.0, le=1.0, description="Fade in/out duration in seconds"
+    )
+
+    # Token Limits (Kokoro-82M constraints)
+    # Based on: https://github.com/remsky/Kokoro-FastAPI
+    # Kokoro can process up to 510 tokens, but quality degrades >400 tokens
+    token_target_min: int = Field(
+        default=100,
+        ge=20,
+        le=500,
+        description="Minimum tokens per chunk (avoid very short chunks)"
+    )
+    token_target_max: int = Field(
+        default=250,
+        ge=100,
+        le=400,
+        description="Target maximum tokens per chunk (optimal quality range)"
+    )
+    token_absolute_max: int = Field(
+        default=450,
+        ge=250,
+        le=510,
+        description="Absolute maximum tokens (hard limit before rushed speech)"
+    )
+    chunk_gap_duration: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=2.0,
+        description="Gap duration between auto-generated chunks in seconds"
     )
 
     # Output Settings

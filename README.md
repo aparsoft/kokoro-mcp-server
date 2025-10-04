@@ -10,12 +10,12 @@ A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface
 
 ## Features
 
-- **Kokoro-82M TTS Engine**: Open-weight model with 82M parameters
+- **Kokoro-82M TTS Engine**: Open-weight model with 82M parameters (510 tokens per pass)
 - **Audio Enhancement**: Professional processing with librosa (normalization, noise reduction, fade in/out)
 - **MCP Server**: Model Context Protocol integration for Claude Desktop, Cursor, and other AI tools
 - **CLI Interface**: Command-line tools for quick generation
 - **Batch Processing**: Generate multiple audio files efficiently
-- **Script Processing**: Convert complete video scripts with paragraph detection
+- **Script Processing**: Convert complete video scripts with automatic text chunking
 - **Docker Support**: Containerization with docker-compose
 - **Enterprise Features**: Structured logging, configuration management, comprehensive testing
 - **CI/CD**: GitHub Actions pipeline with automated testing
@@ -261,7 +261,7 @@ paths = engine.batch_generate(
 ### Script Processing
 
 ```python
-# Process complete video script
+# Process complete video script with automatic text chunking
 engine.process_script(
     script_path="video_script.txt",
     output_path="complete_voiceover.wav",
@@ -269,6 +269,9 @@ engine.process_script(
     voice="am_michael",
     speed=1.0
 )
+
+# Note: Kokoro processes up to 510 tokens per pass.
+# Long scripts are automatically chunked and combined seamlessly.
 ```
 
 ### Streaming Generation
@@ -287,62 +290,128 @@ for chunk in engine.generate_stream(
 
 ## Model Context Protocol (MCP) Integration
 
-The MCP server enables AI assistants like Claude Desktop and Cursor to generate speech directly.
+### Quick MCP Setup (5 Minutes)
 
-### Setup for Claude Desktop
+**What is MCP?** Model Context Protocol lets Claude Desktop and Cursor generate speech directly from your conversations. No copy-pasting, no context switching.
 
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+#### For Developers: Quick Start
 
-**Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+```bash
+# 1. Find your Python path
+which python  # Linux/Mac
+where python  # Windows
 
-**Linux:** `~/.config/Claude/claude_desktop_config.json`
+# Example output: /home/ram/projects/youtube-creator/venv/bin/python
+```
 
-```json
+**Claude Desktop:**
+
+```bash
+# 1. Open config (creates if doesn't exist)
+code ~/Library/Application\ Support/Claude/claude_desktop_config.json  # macOS
+code ~/.config/Claude/claude_desktop_config.json  # Linux
+notepad %APPDATA%\Claude\claude_desktop_config.json  # Windows
+
+# 2. Add this (use YOUR absolute Python path):
 {
   "mcpServers": {
     "aparsoft-tts": {
-      "command": "/path/to/venv/bin/python",
+      "command": "/absolute/path/to/your/venv/bin/python",
       "args": ["-m", "aparsoft_tts.mcp_server"]
     }
   }
 }
+
+# 3. Restart Claude (Cmd/Ctrl + R)
 ```
 
-### Setup for Cursor
+**Cursor:**
 
-**Config file:** `~/.cursor/mcp.json`
+```bash
+# 1. Create/edit config
+mkdir -p ~/.cursor && code ~/.cursor/mcp.json
 
-```json
+# 2. Add this (use YOUR absolute Python path):
 {
   "mcpServers": {
     "aparsoft-tts": {
-      "command": "/path/to/venv/bin/python",
+      "command": "/absolute/path/to/your/venv/bin/python",
       "args": ["-m", "aparsoft_tts.mcp_server"]
     }
   }
 }
+
+# 3. Restart Cursor completely
 ```
 
-### MCP Tools
+#### Testing MCP Server
 
-The MCP server provides four tools:
+```bash
+# Quick test - should print server info
+python -m aparsoft_tts.mcp_server --help
 
-1. **generate_speech**: Create audio from text with voice and speed options
-2. **list_voices**: Show all available voices
-3. **batch_generate**: Process multiple texts
-4. **process_script**: Convert complete scripts to audio
+# Interactive testing with MCP Inspector
+npx @modelcontextprotocol/inspector \
+  --command "/path/to/venv/bin/python" \
+  --args "-m" "aparsoft_tts.mcp_server"
+# Opens UI at http://localhost:6274
+```
 
-### Using MCP
+#### Usage Examples
 
-Once configured, ask Claude or Cursor:
+In Claude Desktop or Cursor, just ask naturally:
 
 ```
-"Generate speech for 'Welcome to my channel' using the am_michael voice"
+# Basic generation
+"Generate speech for 'Welcome to my channel' using am_michael voice"
+
+# Voice discovery
 "List all available TTS voices"
-"Process this script file and create a voiceover"
+
+# Batch processing
+"Create voiceovers for these three segments: 'Intro', 'Main', 'Outro'"
+
+# Script processing
+"Process video_script.txt and create a complete voiceover"
+
+# Custom parameters
+"Generate 'Test message' at 1.3x speed with British accent"
 ```
 
-The AI will use the MCP server to generate audio automatically.
+### MCP Tools Available
+
+1. **generate_speech**: Single audio generation with full control
+   - Text input (up to 10,000 characters)
+   - Voice selection (6 voices)
+   - Speed control (0.5x - 2.0x)
+   - Audio enhancement toggle
+
+2. **list_voices**: Get voice catalog with descriptions
+
+3. **batch_generate**: Process multiple texts efficiently
+
+4. **process_script**: Complete video script conversion
+   - Automatic paragraph detection
+   - Configurable gap duration
+   - Handles long texts via automatic chunking
+
+### Troubleshooting MCP
+
+**"Could not attach to MCP server"**
+- Use absolute path: `/full/path/to/venv/bin/python`
+- Test server runs: `python -m aparsoft_tts.mcp_server`
+- Check Python version: `python --version` (needs 3.10+)
+
+**"Tool not found"**
+```bash
+# Reinstall MCP dependencies
+pip install -e ".[mcp]"
+
+# Verify FastMCP
+python -c "from fastmcp import FastMCP; print('✅ OK')"
+```
+
+**Detailed Documentation:** See [TUTORIAL.md](local_folder/TUTORIAL.md) for comprehensive MCP guide with advanced features, debugging, and production deployment.
 
 ---
 
@@ -657,14 +726,23 @@ docker logs aparsoft-tts
 - Model Loading: ~2-3 seconds (one-time)
 - Generation Speed: ~0.5s per second of audio
 - Memory Usage: ~2GB RAM (model loaded)
+- Token Processing: Up to 510 tokens per pass
+
+**Text Length Limits:**
+
+Kokoro-82M processes up to 510 tokens in a single pass. For longer texts:
+- Automatic chunking: Engine automatically splits long texts
+- Script processing: Handles unlimited length via intelligent segmentation
+- Batch processing: Each segment processed independently
 
 **Optimization Tips:**
 
 1. Reuse engine instances (avoid reloading model)
 2. Disable enhancement for draft generations (`enhance=False`)
-3. Use streaming for long texts
-4. Batch process multiple files
+3. Use streaming for long texts (automatic chunking)
+4. Batch process multiple files for efficiency
 5. Enable GPU acceleration on supported platforms
+6. For very long texts, use `process_script()` for optimal chunking
 
 ---
 
@@ -676,7 +754,9 @@ This project builds upon excellent open-source software:
 
 - **[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)** by hexgrad - Apache License 2.0
   - Open-weight TTS model with 82M parameters
+  - Processes up to 510 tokens per pass
   - Architectured by @yl4579 (StyleTTS 2)
+  - 24kHz audio output, <100 hours training data
 
 - **[librosa](https://librosa.org/)** - ISC License
   - Audio analysis and processing

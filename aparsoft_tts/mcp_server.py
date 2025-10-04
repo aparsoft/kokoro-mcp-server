@@ -1,4 +1,59 @@
-"""Production-grade MCP server for Aparsoft TTS using FastMCP."""
+"""Production-grade MCP server for Aparsoft TTS using FastMCP.
+
+This MCP server exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
+Cursor, and other MCP-compatible clients. It provides four main tools:
+
+1. generate_speech: Convert text to speech with voice and enhancement options
+2. list_voices: Get available voices organized by gender and accent
+3. batch_generate: Process multiple texts efficiently
+4. process_script: Convert complete video scripts to voiceovers
+
+The server uses FastMCP (https://github.com/jlowin/fastmcp) for standardized
+MCP protocol implementation with features like:
+- Automatic tool schema generation from Python type hints
+- Request validation with Pydantic models
+- Structured logging with correlation IDs
+- Production-ready error handling
+- stdio transport for local MCP clients
+
+Setup Instructions:
+
+1. For Claude Desktop (~/.config/Claude/claude_desktop_config.json or
+   ~/Library/Application Support/Claude/claude_desktop_config.json on macOS):
+
+   {
+     "mcpServers": {
+       "aparsoft-tts": {
+         "command": "/absolute/path/to/venv/bin/python",
+         "args": ["-m", "aparsoft_tts.mcp_server"]
+       }
+     }
+   }
+
+2. For Cursor (~/.cursor/mcp.json):
+
+   {
+     "mcpServers": {
+       "aparsoft-tts": {
+         "command": "/absolute/path/to/venv/bin/python",
+         "args": ["-m", "aparsoft_tts.mcp_server"]
+       }
+     }
+   }
+
+3. Restart your MCP client to load the server
+
+Usage Examples:
+- "Generate speech for 'Welcome to my channel' using am_michael voice"
+- "List all available TTS voices"
+- "Process my script.txt file and create a voiceover"
+- "Batch generate audio for these three segments"
+
+Debugging:
+- Check logs in the client's log directory
+- Use MCP Inspector for interactive testing: npx @modelcontextprotocol/inspector
+- Enable debug logging with LOG_LEVEL=DEBUG environment variable
+"""
 
 import asyncio
 from pathlib import Path

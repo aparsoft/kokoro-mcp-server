@@ -1,10 +1,11 @@
-"""Production-ready TTS engine using Kokoro TTS."""
+"""Production-ready TTS engine using Kokoro TTS with intelligent chunking."""
 
+import re
 from pathlib import Path
-from typing import Generator, Iterator
+from typing import Iterator
 
 import numpy as np
-from kokoro import KPipeline
+from kokoro import KPipeline, phonemize, tokenize
 from numpy.typing import NDArray
 
 from aparsoft_tts.config import TTSConfig, get_config
@@ -29,14 +30,29 @@ ALL_VOICES = MALE_VOICES + FEMALE_VOICES
 
 
 class TTSEngine(LoggerMixin):
-    """Production-ready TTS engine for YouTube video generation.
+    """Production-ready TTS engine with intelligent token-aware chunking.
 
     This class provides a high-level interface to the Kokoro TTS model with:
-    - Automatic audio enhancement
+    - Automatic token counting and intelligent chunking
+    - Audio enhancement with professional processing
     - Batch processing capabilities
     - Streaming support
     - Error handling and logging
     - Configuration management
+
+    Kokoro Model Limits:
+        - Maximum: 510 tokens per pass (architectural limit)
+        - Optimal: 100-250 tokens (best audio quality)
+        - Rushed speech: >400 tokens (quality degrades)
+
+    The engine automatically chunks long texts at sentence boundaries
+    to maintain optimal quality and prevent rushed speech artifacts.
+
+    Token limits are configurable via TTSConfig:
+        - token_target_min: Minimum tokens per chunk (default: 100)
+        - token_target_max: Target maximum (default: 250)
+        - token_absolute_max: Hard limit (default: 450)
+        - chunk_gap_duration: Gap between chunks (default: 0.2s)
 
     Example:
         >>> from aparsoft_tts.core.engine import TTSEngine
@@ -44,12 +60,14 @@ class TTSEngine(LoggerMixin):
         >>> engine.generate("Hello world", "output.wav")
         PosixPath('output.wav')
 
-        >>> # Batch processing
-        >>> texts = ["Intro", "Main content", "Outro"]
-        >>> engine.batch_generate(texts, "outputs/")
+        >>> # Long text automatically chunked
+        >>> long_text = "..." * 1000  # Very long text
+        >>> engine.generate(long_text, "output.wav")  # Handles chunking
 
-        >>> # Process full script
-        >>> engine.process_script("script.txt", "final_voiceover.wav")
+        >>> # Custom token limits via config
+        >>> from aparsoft_tts import TTSConfig
+        >>> config = TTSConfig(token_target_max=300)  # Larger chunks
+        >>> engine = TTSEngine(config=config)
     """
 
     def __init__(self, config: TTSConfig | None = None):
@@ -68,12 +86,167 @@ class TTSEngine(LoggerMixin):
                 "initializing_tts_engine",
                 voice=self.config.voice,
                 lang_code=self.config.lang_code,
+                token_limits=f"{self.config.token_target_min}-{self.config.token_target_max}",
             )
-            self.pipeline = KPipeline(lang_code=self.config.lang_code)
+            self.pipeline = KPipeline(lang_code=self.config.lang_code, repo_id=self.config.repo_id)
             self.log.info("tts_engine_initialized")
         except Exception as e:
             self.log.error("tts_initialization_failed", error=str(e))
             raise ModelLoadError(f"Failed to initialize TTS model: {e}") from e
+
+    def _count_tokens(self, text: str) -> int:
+        """Count phonemized tokens for text.
+
+        Uses Kokoro's phonemization and tokenization to get accurate
+        token count. This is critical for preventing rushed speech.
+
+        Args:
+            text: Input text
+
+        Returns:
+            Number of phonemized tokens
+
+        Note:
+            Falls back to rough estimate (1 token ≈ 4 chars) if
+            phonemization fails.
+        """
+        try:
+            phonemes = phonemize(text, lang=self.config.lang_code)
+            tokens = tokenize(phonemes)
+            return len(tokens)
+        except Exception as e:
+            # Fallback: rough estimate
+            # Average: 1 token ≈ 4 characters for English
+            self.log.warning("token_count_fallback", error=str(e), using_estimate=True)
+            return len(text) // 4
+
+    def _chunk_text_smart(
+        self,
+        text: str,
+        target_min_tokens: int | None = None,
+        target_max_tokens: int | None = None,
+        absolute_max_tokens: int | None = None,
+    ) -> list[str]:
+        """Chunk text intelligently based on token limits.
+
+        Implements best practices for Kokoro TTS:
+        - Optimal range: 100-250 tokens per chunk (configurable)
+        - Never exceed hard limit (prevents rushed speech)
+        - Split at sentence boundaries when possible
+        - Avoid very short chunks (<20 tokens)
+        - Handle edge cases (oversized sentences, etc.)
+
+        Algorithm:
+            1. Split text into sentences
+            2. Combine sentences until target_max_tokens
+            3. For oversized sentences, split by commas/semicolons
+            4. Last resort: force split by words
+            5. Merge very short final chunks with previous
+
+        Args:
+            text: Input text to chunk
+            target_min_tokens: Minimum tokens per chunk (default: from config)
+            target_max_tokens: Target maximum tokens per chunk (default: from config)
+            absolute_max_tokens: Hard limit to prevent rushed speech (default: from config)
+
+        Returns:
+            List of text chunks, each within optimal token range
+
+        Example:
+            >>> engine = TTSEngine()
+            >>> chunks = engine._chunk_text_smart("Long text here...")
+            >>> # Each chunk uses configured token limits
+        """
+        # Use config values if not provided
+        target_min_tokens = target_min_tokens or self.config.token_target_min
+        target_max_tokens = target_max_tokens or self.config.token_target_max
+        absolute_max_tokens = absolute_max_tokens or self.config.token_absolute_max
+
+        # Split into sentences first
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+
+        chunks = []
+        current_chunk = []
+        current_tokens = 0
+
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+
+            sentence_tokens = self._count_tokens(sentence)
+
+            # Handle oversized single sentences
+            if sentence_tokens > absolute_max_tokens:
+                # Save current chunk if exists
+                if current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                    current_chunk = []
+                    current_tokens = 0
+
+                # Split long sentence by commas/semicolons
+                parts = re.split(r"[,;]\s+", sentence)
+                for part in parts:
+                    part = part.strip()
+                    if not part:
+                        continue
+
+                    part_tokens = self._count_tokens(part)
+
+                    if part_tokens > absolute_max_tokens:
+                        # Force split by words as last resort
+                        words = part.split()
+                        for word in words:
+                            word_tokens = self._count_tokens(word)
+                            if current_tokens + word_tokens <= target_max_tokens:
+                                current_chunk.append(word)
+                                current_tokens += word_tokens
+                            else:
+                                if current_chunk:
+                                    chunks.append(" ".join(current_chunk))
+                                current_chunk = [word]
+                                current_tokens = word_tokens
+                    else:
+                        if current_tokens + part_tokens <= target_max_tokens:
+                            current_chunk.append(part)
+                            current_tokens += part_tokens
+                        else:
+                            if current_chunk:
+                                chunks.append(" ".join(current_chunk))
+                            current_chunk = [part]
+                            current_tokens = part_tokens
+                continue
+
+            # Normal sentence handling
+            if current_tokens + sentence_tokens <= target_max_tokens:
+                # Add to current chunk
+                current_chunk.append(sentence)
+                current_tokens += sentence_tokens
+            else:
+                # Start new chunk
+                if current_chunk:
+                    # Only save if meets minimum threshold
+                    if current_tokens >= target_min_tokens or len(chunks) == 0:
+                        chunks.append(" ".join(current_chunk))
+                    else:
+                        # Chunk too small, merge with previous if possible
+                        if chunks:
+                            chunks[-1] += " " + " ".join(current_chunk)
+
+                current_chunk = [sentence]
+                current_tokens = sentence_tokens
+
+        # Add final chunk
+        if current_chunk:
+            chunk_text = " ".join(current_chunk)
+            # Avoid very short chunks (< 20 tokens)
+            if current_tokens >= 20 or len(chunks) == 0:
+                chunks.append(chunk_text)
+            elif chunks:
+                # Merge with previous chunk
+                chunks[-1] += " " + chunk_text
+
+        return chunks
 
     def generate(
         self,
@@ -83,7 +256,11 @@ class TTSEngine(LoggerMixin):
         speed: float | None = None,
         enhance: bool | None = None,
     ) -> Path | NDArray[np.float32]:
-        """Generate speech from text.
+        """Generate speech from text with automatic intelligent chunking.
+
+        For texts over token_target_max, automatically chunks at sentence
+        boundaries to maintain optimal audio quality and prevent
+        rushed speech artifacts.
 
         Args:
             text: Input text to convert to speech
@@ -104,6 +281,10 @@ class TTSEngine(LoggerMixin):
             >>> engine = TTSEngine()
             >>> path = engine.generate("Hello", "output.wav")
             >>> audio = engine.generate("Hello")  # Returns array
+
+            >>> # Long text automatically chunked for quality
+            >>> long_text = "..." * 500
+            >>> engine.generate(long_text, "long_output.wav")
         """
         # Validate parameters
         voice = voice or self.config.voice
@@ -119,29 +300,70 @@ class TTSEngine(LoggerMixin):
         enhance = enhance if enhance is not None else self.config.enhance_audio
 
         try:
+            # Count tokens first
+            token_count = self._count_tokens(text)
+
             self.log.info(
                 "generating_speech",
                 text_length=len(text),
+                estimated_tokens=token_count,
                 voice=voice,
                 speed=speed,
                 enhance=enhance,
             )
 
-            # Generate speech using Kokoro's built-in newline handling
-            # split_pattern processes newlines properly for smooth speech
-            generator = self.pipeline(
-                text,
-                voice=voice,
-                speed=speed,
-                split_pattern=r'\n+'  # Official Kokoro way to handle newlines
-            )
+            # Chunk if text exceeds optimal length
+            if token_count > self.config.token_target_max:
+                self.log.info(
+                    "text_exceeds_optimal_length_chunking",
+                    tokens=token_count,
+                    target_max=self.config.token_target_max,
+                )
 
-            audio_chunks = []
-            for _, _, audio in generator:
-                audio_chunks.append(audio)
+                chunks = self._chunk_text_smart(text)
 
-            # Combine chunks
-            final_audio = np.concatenate(audio_chunks).astype(np.float32)
+                audio_chunks = []
+                for i, chunk in enumerate(chunks):
+                    chunk_tokens = self._count_tokens(chunk)
+                    self.log.debug(
+                        "processing_chunk",
+                        chunk_num=i + 1,
+                        total_chunks=len(chunks),
+                        tokens=chunk_tokens,
+                        text_preview=chunk[:50],
+                    )
+
+                    # Generate for this chunk
+                    generator = self.pipeline(chunk, voice=voice, speed=speed)
+                    chunk_audio = []
+                    for _, _, audio in generator:
+                        if hasattr(audio, "cpu"):
+                            audio = audio.cpu().numpy()
+                        chunk_audio.append(audio)
+
+                    audio_chunks.append(np.concatenate(chunk_audio).astype(np.float32))
+
+                # Combine with configured gap to prevent artifacts
+                final_audio = combine_audio_segments(
+                    audio_chunks,
+                    sample_rate=self.config.sample_rate,
+                    gap_duration=self.config.chunk_gap_duration,
+                )
+
+                self.log.info(
+                    "chunks_combined", num_chunks=len(chunks), total_samples=len(final_audio)
+                )
+            else:
+                # Text within optimal range - generate directly
+                generator = self.pipeline(text, voice=voice, speed=speed)
+
+                audio_chunks = []
+                for _, _, audio in generator:
+                    if hasattr(audio, "cpu"):
+                        audio = audio.cpu().numpy()
+                    audio_chunks.append(audio)
+
+                final_audio = np.concatenate(audio_chunks).astype(np.float32)
 
             # Enhance if requested
             if enhance:
@@ -179,6 +401,7 @@ class TTSEngine(LoggerMixin):
         """Generate speech as a stream of audio chunks.
 
         Useful for real-time applications or processing long texts.
+        Automatically chunks text if it exceeds optimal token limits.
 
         Args:
             text: Input text
@@ -200,18 +423,30 @@ class TTSEngine(LoggerMixin):
         speed = speed if speed is not None else self.config.speed
 
         try:
-            self.log.info("generating_speech_stream", text_length=len(text), voice=voice)
-
-            # Use Kokoro's built-in newline handling
-            generator = self.pipeline(
-                text,
+            token_count = self._count_tokens(text)
+            self.log.info(
+                "generating_speech_stream",
+                text_length=len(text),
+                estimated_tokens=token_count,
                 voice=voice,
-                speed=speed,
-                split_pattern=r'\n+'
             )
 
-            for _, _, audio in generator:
-                yield audio.astype(np.float32)
+            # Chunk if needed
+            if token_count > self.config.token_target_max:
+                chunks = self._chunk_text_smart(text)
+                for chunk in chunks:
+                    generator = self.pipeline(chunk, voice=voice, speed=speed)
+                    for _, _, audio in generator:
+                        if hasattr(audio, "cpu"):
+                            audio = audio.cpu().numpy()
+                        yield audio.astype(np.float32)
+            else:
+                # Direct generation for short text
+                generator = self.pipeline(text, voice=voice, speed=speed)
+                for _, _, audio in generator:
+                    if hasattr(audio, "cpu"):
+                        audio = audio.cpu().numpy()
+                    yield audio.astype(np.float32)
 
         except Exception as e:
             self.log.error("stream_generation_failed", error=str(e))
@@ -226,6 +461,8 @@ class TTSEngine(LoggerMixin):
         filename_prefix: str = "audio",
     ) -> list[Path]:
         """Generate multiple audio files from a list of texts.
+
+        Each text is automatically chunked if needed for optimal quality.
 
         Args:
             texts: List of text strings to convert
@@ -273,15 +510,21 @@ class TTSEngine(LoggerMixin):
         voice: str | None = None,
         speed: float | None = None,
     ) -> Path:
-        """Process a complete video script file.
+        """Process a complete video script file with intelligent chunking.
 
-        Reads script, splits by paragraphs, generates audio for each,
-        and combines with gaps.
+        Reads script, applies token-aware chunking for optimal quality,
+        generates audio for each chunk, and combines with gaps.
+
+        The chunking algorithm ensures:
+        - Each chunk is within configured token limits
+        - No chunk exceeds hard limit (prevents rushed speech)
+        - Splits at sentence boundaries when possible
+        - Maintains natural phrasing and rhythm
 
         Args:
             script_path: Path to script text file
             output_path: Output file path
-            gap_duration: Gap between segments in seconds
+            gap_duration: Gap between segments in seconds (default: 0.5s)
             voice: Voice to use (overrides config)
             speed: Speech speed (overrides config)
 
@@ -294,7 +537,8 @@ class TTSEngine(LoggerMixin):
 
         Example:
             >>> engine = TTSEngine()
-            >>> engine.process_script("script.txt", "voiceover.wav")
+            >>> # Script automatically chunked for best quality
+            >>> engine.process_script("long_script.txt", "voiceover.wav")
         """
         script_path = Path(script_path)
 
@@ -303,26 +547,42 @@ class TTSEngine(LoggerMixin):
 
         self.log.info("processing_script", script_path=str(script_path))
 
-        # Read and split script
+        # Read script
         with open(script_path, "r", encoding="utf-8") as f:
             script = f.read()
 
-        segments = [s.strip() for s in script.split("\n\n") if s.strip()]
-        self.log.info("script_parsed", num_segments=len(segments))
+        # Smart chunking for optimal token distribution
+        chunks = self._chunk_text_smart(script)
 
-        # Generate segments
+        total_tokens = sum(self._count_tokens(c) for c in chunks)
+        self.log.info(
+            "script_parsed",
+            num_chunks=len(chunks),
+            estimated_total_tokens=total_tokens,
+            avg_tokens_per_chunk=total_tokens // len(chunks) if chunks else 0,
+        )
+
+        # Generate chunks
         audio_segments = []
-        for i, segment in enumerate(segments, 1):
-            self.log.info("processing_segment", segment_num=i, text_length=len(segment))
+        for i, chunk in enumerate(chunks, 1):
+            tokens = self._count_tokens(chunk)
+            self.log.info(
+                "processing_chunk",
+                chunk_num=i,
+                total_chunks=len(chunks),
+                tokens=tokens,
+                text_length=len(chunk),
+                text_preview=chunk[:50],
+            )
 
-            audio = self.generate(segment, voice=voice, speed=speed)
+            audio = self.generate(chunk, voice=voice, speed=speed)
             if isinstance(audio, Path):
                 # This shouldn't happen since we're not passing output_path
                 raise TTSGenerationError("Unexpected path return from generate")
 
             audio_segments.append(audio)
 
-        # Combine segments
+        # Combine segments with gaps
         final_audio = combine_audio_segments(
             audio_segments, sample_rate=self.config.sample_rate, gap_duration=gap_duration
         )
@@ -339,7 +599,7 @@ class TTSEngine(LoggerMixin):
         self.log.info(
             "script_processed",
             output_path=str(result_path),
-            num_segments=len(segments),
+            num_chunks=len(chunks),
             duration_seconds=duration,
         )
 
