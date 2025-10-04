@@ -1,6 +1,6 @@
 # Kokoro YouTube TTS
 
-A production-ready Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with professional audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
+A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with professional audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -16,7 +16,7 @@ A production-ready Text-to-Speech toolkit built on [Kokoro-82M](https://huggingf
 - **CLI Interface**: Command-line tools for quick generation
 - **Batch Processing**: Generate multiple audio files efficiently
 - **Script Processing**: Convert complete video scripts with paragraph detection
-- **Docker Support**: Production-ready containerization with docker-compose
+- **Docker Support**: Containerization with docker-compose
 - **Enterprise Features**: Structured logging, configuration management, comprehensive testing
 - **CI/CD**: GitHub Actions pipeline with automated testing
 
@@ -26,12 +26,12 @@ A production-ready Text-to-Speech toolkit built on [Kokoro-82M](https://huggingf
 
 ### Building on Kokoro-82M
 
-We integrate Kokoro-82M's excellent TTS inference with production-grade tooling and workflow enhancements. This toolkit adds:
+We integrate Kokoro-82M's excellent TTS inference with development tooling and workflow enhancements. This toolkit adds:
 
 1. **Professional audio post-processing** - Normalization, noise reduction, silence trimming, and fade in/out using librosa
 2. **Automated script workflows** - Direct script-to-voiceover conversion with paragraph detection and gap management
 3. **IDE-native generation** - MCP server integration eliminates context switching for Claude Desktop and Cursor users
-4. **Production infrastructure** - Docker deployment, structured logging, configuration management, and comprehensive testing
+4. **Deployment infrastructure** - Docker deployment, structured logging, configuration management, and comprehensive testing
 5. **Batch processing** - CLI and Python APIs for processing multiple segments efficiently
 
 ### Technical Implementation
@@ -54,7 +54,7 @@ audio = enhance_audio(
 )
 ```
 
-**Result:** Voiceovers ready for YouTube, podcasts, or production use without additional audio editing.
+**Result:** Voiceovers ready for YouTube, podcasts, or content creation without additional audio editing.
 
 **MCP Server Integration:**
 
@@ -81,9 +81,9 @@ With MCP server:
 - **Teams**: Standardized TTS across tools (Claude, Cursor, CLI, API)
 - **Automation**: AI agents can generate audio as part of content pipelines
 
-**Production Features:**
+**Deployment Features:**
 
-The toolkit wraps Kokoro with enterprise requirements:
+The toolkit wraps Kokoro with common deployment and development needs:
 
 - **Configuration management** - Environment-based settings, no hardcoded values
 - **Structured logging** - JSON logs for aggregation, correlation IDs for tracing
@@ -728,7 +728,7 @@ If you use this toolkit in your research or project, please cite:
 ```bibtex
 @software{kokoro_youtube_tts,
   author = {Aparsoft},
-  title = {Kokoro YouTube TTS: Production-Ready TTS Toolkit},
+  title = {Kokoro YouTube TTS: Comprehensive TTS Toolkit},
   year = {2025},
   url = {https://github.com/aparsoft/kokoro-youtube-tts}
 }
