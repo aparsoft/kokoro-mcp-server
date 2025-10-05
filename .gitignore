@@ -157,4 +157,5 @@ temp/
 local_folder/
 local_folder/*
 output/
+outputs/
 output/*

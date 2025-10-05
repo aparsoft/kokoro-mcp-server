@@ -19,7 +19,7 @@ def enhance_audio(
     sample_rate: int = 24000,
     normalize: bool = True,
     trim_silence: bool = True,
-    trim_db: float = 30.0,  # Less aggressive trimming (was 20.0, higher = gentler)
+    trim_db: float = 30.0,  # Conservative trimming (higher = less aggressive, better preserves soft endings)
     add_fade: bool = True,
     fade_duration: float = 0.1,
     noise_reduction: bool = True,
@@ -63,15 +63,23 @@ def enhance_audio(
         if normalize:
             audio = librosa.util.normalize(audio)
 
-        # Trim silence with gentler parameters
+        # Trim silence with conservative parameters to preserve soft endings
         if trim_silence:
             # Use smaller frame/hop lengths for better resolution (prevents voice cutoff)
-            audio, _ = librosa.effects.trim(
+            audio_trimmed, trim_indices = librosa.effects.trim(
                 audio,
                 top_db=trim_db,
                 frame_length=512,   # Smaller for better resolution (default 2048)
                 hop_length=128      # Smaller for finer control (default 512)
             )
+            
+            # Add generous margin at end to preserve soft endings (critical for am_michael voice)
+            # This prevents cutting off final consonants and soft voice endings
+            margin_samples = int(0.1 * sample_rate)  # 100ms margin at end (increased from 50ms)
+            start_idx = trim_indices[0]
+            end_idx = min(trim_indices[1] + margin_samples, len(audio))
+            
+            audio = audio[start_idx:end_idx]
 
         # Spectral noise reduction
         if noise_reduction:

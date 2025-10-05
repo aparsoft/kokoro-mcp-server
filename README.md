@@ -186,18 +186,21 @@ aparsoft-tts batch "Intro" "Body" "Outro" -d segments/
 ## Available Voices
 
 **Male Voices:**
-- `am_michael` - American male (professional, recommended)
-- `bm_george` - British male (formal)
-- `am_adam` - American male (younger)
+- `am_adam` - American male (natural inflection)
+- `am_michael` - American male (deeper tones, professional)
+- `bm_george` - British male (classic accent)
+- `bm_lewis` - British male (modern accent)
 
 **Female Voices:**
-- `af_bella` - American female (warm)
-- `af_heart` - American female (expressive)
+- `af_bella` - American female (warm tones)
+- `af_nicole` - American female (dynamic range)
+- `af_sarah` - American female (clear articulation)
+- `af_sky` - American female (youthful energy)
 - `bf_emma` - British female (professional)
+- `bf_isabella` - British female (soft tones)
 
-**Language Support:**
-- 🇺🇸 American English (`lang_code='a'`)
-- 🇬🇧 British English (`lang_code='b'`)
+**Special Voices:**
+- `af` - Default mix (50-50 blend of Bella and Sarah)
 
 ---
 

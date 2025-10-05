@@ -23,13 +23,15 @@ class TTSConfig(BaseSettings):
         default="am_michael",
         description="Default voice to use (am_michael, bm_george, am_adam, af_bella, etc.)",
     )
+    # DEPRECATED: lang_code is now automatically determined from voice prefix
+    # This field is kept for backwards compatibility but is not used by the engine
     lang_code: Literal["a", "b"] = Field(
-        default="a", description="Language code: 'a' for American, 'b' for British English"
+        default="a",
+        description="Language code auto-detected from voice prefix (am_/af_='a', bm_/bf_='b')",
     )
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed (0.5-2.0)")
     repo_id: str = Field(
-        default="hexgrad/Kokoro-82M",
-        description="Hugging Face model repository ID"
+        default="hexgrad/Kokoro-82M", description="Hugging Face model repository ID"
     )
 
     # Audio Processing
@@ -38,7 +40,10 @@ class TTSConfig(BaseSettings):
         default=True, description="Apply audio enhancement (normalization, trimming, etc.)"
     )
     trim_silence: bool = Field(default=True, description="Trim silence from audio")
-    trim_db: float = Field(default=30.0, description="dB threshold for silence trimming (higher = gentler)")
+    trim_db: float = Field(
+        default=30.0,
+        description="dB threshold for silence trimming (higher = less aggressive, better preserves soft endings)",
+    )
     fade_duration: float = Field(
         default=0.1, ge=0.0, le=1.0, description="Fade in/out duration in seconds"
     )
@@ -47,28 +52,25 @@ class TTSConfig(BaseSettings):
     # Based on: https://github.com/remsky/Kokoro-FastAPI
     # Kokoro can process up to 510 tokens, but quality degrades >400 tokens
     token_target_min: int = Field(
-        default=100,
-        ge=20,
-        le=500,
-        description="Minimum tokens per chunk (avoid very short chunks)"
+        default=100, ge=20, le=500, description="Minimum tokens per chunk (avoid very short chunks)"
     )
     token_target_max: int = Field(
         default=250,
         ge=100,
         le=400,
-        description="Target maximum tokens per chunk (optimal quality range)"
+        description="Target maximum tokens per chunk (optimal quality range)",
     )
     token_absolute_max: int = Field(
         default=450,
         ge=250,
         le=510,
-        description="Absolute maximum tokens (hard limit before rushed speech)"
+        description="Absolute maximum tokens (hard limit before rushed speech)",
     )
     chunk_gap_duration: float = Field(
         default=0.2,
         ge=0.0,
         le=2.0,
-        description="Gap duration between auto-generated chunks in seconds"
+        description="Gap duration between auto-generated chunks in seconds",
     )
 
     # Output Settings

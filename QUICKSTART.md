@@ -188,14 +188,21 @@ pytest --cov=aparsoft_tts
 ## Available Voices
 
 **Male Voices:**
-- `am_michael` - Professional American male (⭐ recommended)
-- `bm_george` - British male, formal
-- `am_adam` - American male, younger
+- `am_adam` - American male, natural inflection
+- `am_michael` - American male, deeper tones (⭐ recommended)
+- `bm_george` - British male, classic accent
+- `bm_lewis` - British male, modern accent
 
 **Female Voices:**
-- `af_bella` - American female, warm
-- `af_heart` - American female, expressive
+- `af_bella` - American female, warm tones
+- `af_nicole` - American female, dynamic range
+- `af_sarah` - American female, clear articulation
+- `af_sky` - American female, youthful energy
 - `bf_emma` - British female, professional
+- `bf_isabella` - British female, soft tones
+
+**Special:**
+- `af` - Default (Bella + Sarah mix)
 
 ## Next Steps
 
