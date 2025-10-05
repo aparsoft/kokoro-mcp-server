@@ -1,0 +1,3 @@
+espeak-ng
+ffmpeg
+libsndfile1
