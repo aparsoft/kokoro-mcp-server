@@ -37,6 +37,9 @@ from aparsoft_tts import TTSEngine, TTSConfig, ALL_VOICES, MALE_VOICES, FEMALE_V
 from aparsoft_tts.utils.audio import enhance_audio, get_audio_duration
 from aparsoft_tts.config import get_config
 
+# Import error handling utilities
+from streamlit_utils import streamlit_error_handler, show_exception, safe_json_serialize
+
 # ==========================================
 # PAGE CONFIGURATION
 # ==========================================
@@ -173,16 +176,13 @@ if "total_duration" not in st.session_state:
 # ==========================================
 
 
+@streamlit_error_handler()
 def initialize_engine(config: TTSConfig = None) -> TTSEngine:
     """Initialize TTS engine with optional custom config"""
-    try:
-        with st.spinner("🔄 Initializing TTS Engine..."):
-            engine = TTSEngine(config=config)
-            st.session_state.engine = engine
-        return engine
-    except Exception as e:
-        st.error(f"❌ Failed to initialize engine: {str(e)}")
-        return None
+    with st.spinner("🔄 Initializing TTS Engine..."):
+        engine = TTSEngine(config=config)
+        st.session_state.engine = engine
+    return engine
 
 
 def get_engine() -> TTSEngine:
@@ -209,15 +209,19 @@ def get_history_df() -> pd.DataFrame:
     return df
 
 
+@streamlit_error_handler(show_traceback=False, log_to_file=True)
 def save_history():
     """Save history to JSON file"""
     history_file = Path("data/generation_history.json")
     history_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(history_file, "w") as f:
-        json.dump(st.session_state.generation_history, f, indent=2)
+        # Use safe serialization to handle any Path objects
+        safe_data = safe_json_serialize(st.session_state.generation_history)
+        json.dump(safe_data, f, indent=2)
 
 
+@streamlit_error_handler(show_traceback=False, log_to_file=True)
 def load_history():
     """Load history from JSON file"""
     history_file = Path("data/generation_history.json")
@@ -443,7 +447,7 @@ with tab1:
                         )
 
             except Exception as e:
-                st.error(f"❌ Generation failed: {str(e)}")
+                show_exception(e, "Speech generation failed")
 
 # ==========================================
 # TAB 2: BATCH PROCESSING
@@ -583,7 +587,7 @@ with tab2:
                     )
 
             except Exception as e:
-                st.error(f"❌ Batch generation failed: {str(e)}")
+                show_exception(e, "Batch generation failed")
 
 # ==========================================
 # TAB 3: SCRIPT PROCESSING
@@ -733,7 +737,7 @@ with tab3:
                     )
 
             except Exception as e:
-                st.error(f"❌ Script processing failed: {str(e)}")
+                show_exception(e, "Script processing failed")
 
 # ==========================================
 # TAB 4: VOICE EXPLORER
@@ -791,7 +795,7 @@ with tab4:
                             st.success("✅ Generated!")
 
                     except Exception as e:
-                        st.error(f"❌ Failed: {str(e)}")
+                        show_exception(e, f"Voice sample generation failed for {voice}")
 
     with col2:
         st.markdown("#### 👩 Female Voices")
@@ -833,7 +837,7 @@ with tab4:
                             st.success("✅ Generated!")
 
                     except Exception as e:
-                        st.error(f"❌ Failed: {str(e)}")
+                        show_exception(e, f"Voice sample generation failed for {voice}")
 
 # ==========================================
 # TAB 5: CONFIGURATION
@@ -927,8 +931,9 @@ with tab5:
 
             config_file = config_dir / "custom_config.json"
 
+            # ✅ FIX: Use model_dump_json() to handle Path serialization
             with open(config_file, "w") as f:
-                json.dump(custom_config.model_dump(), f, indent=2)
+                f.write(custom_config.model_dump_json(indent=2))
 
             # Reinitialize engine with new config
             st.session_state.engine = None
@@ -937,7 +942,13 @@ with tab5:
             st.success("✅ Configuration saved and engine reloaded!")
 
         except Exception as e:
+            # Show detailed error with full traceback
             st.error(f"❌ Failed to save configuration: {str(e)}")
+            
+            # Show full traceback in expandable section
+            with st.expander("🔍 Full Error Details"):
+                import traceback
+                st.code(traceback.format_exc(), language="python")
 
     # Current Configuration Display
     st.markdown("---")

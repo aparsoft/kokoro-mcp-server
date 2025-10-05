@@ -1,0 +1,19 @@
+{
+  "voice": "am_michael",
+  "lang_code": "a",
+  "speed": 1.1,
+  "repo_id": "hexgrad/Kokoro-82M",
+  "sample_rate": 24000,
+  "enhance_audio": true,
+  "trim_silence": true,
+  "trim_db": 30.0,
+  "fade_duration": 0.1,
+  "token_target_min": 100,
+  "token_target_max": 250,
+  "token_absolute_max": 450,
+  "chunk_gap_duration": 0.2,
+  "output_dir": "outputs",
+  "output_format": "wav",
+  "chunk_size": 1024,
+  "max_workers": 4
+}
