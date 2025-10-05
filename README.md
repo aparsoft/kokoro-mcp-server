@@ -1,6 +1,6 @@
 # Kokoro YouTube TTS
 
-A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with professional audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
+A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -22,13 +22,11 @@ A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface
 
 ---
 
-## Problem & Solution
-
-### Building on Kokoro-82M
+## Building on Kokoro-82M
 
 We integrate Kokoro-82M's excellent TTS inference with development tooling and workflow enhancements. This toolkit adds:
 
-1. **Professional audio post-processing** - Normalization, noise reduction, silence trimming, and fade in/out using librosa
+1. **Audio post-processing** - Normalization, noise reduction, silence trimming, and fade in/out using librosa
 2. **Automated script workflows** - Direct script-to-voiceover conversion with paragraph detection and gap management
 3. **IDE-native generation** - MCP server integration eliminates context switching for Claude Desktop and Cursor users
 4. **Deployment infrastructure** - Docker deployment, structured logging, configuration management, and comprehensive testing
@@ -38,7 +36,7 @@ We integrate Kokoro-82M's excellent TTS inference with development tooling and w
 
 **Audio Enhancement (librosa Integration):**
 
-This toolkit adds a professional audio processing pipeline on Kokoro generated TTS output:
+This toolkit adds an audio processing pipeline on Kokoro generated TTS output:
 
 ```python
 # Without enhancement - raw Kokoro output
