@@ -42,7 +42,7 @@ This toolkit adds an audio processing pipeline on Kokoro generated TTS output:
 # Without enhancement - raw Kokoro output
 audio = kokoro_pipeline(text)
 
-# With enhancement - broadcast-ready
+# With enhancement
 audio = enhance_audio(
     kokoro_output,
     normalize=True,        # Consistent volume
@@ -828,6 +828,4 @@ For the Kokoro model:
 
 ---
 
-**Built with ❤️ for the YouTube creator community**
-
-*Last Updated: January 2025*
+**Built with ❤️ for the video creator community**
