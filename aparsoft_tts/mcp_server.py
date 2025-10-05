@@ -162,7 +162,30 @@ class ProcessScriptRequest(BaseModel):
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
-@mcp.tool()
+def convert_wsl_path_to_linux(path_str: str) -> str:
+    """Convert Windows WSL UNC paths to Linux paths.
+    
+    Converts paths like:
+    - \\wsl.localhost\Ubuntu\home\ram\file.txt -> /home/ram/file.txt
+    - \\wsl$\Ubuntu\home\ram\file.txt -> /home/ram/file.txt
+    - /home/ram/file.txt -> /home/ram/file.txt (unchanged)
+    
+    Args:
+        path_str: Path string (Windows WSL UNC or Linux format)
+        
+    Returns:
+        Linux-style path
+    """
+    # Check if it's a Windows WSL UNC path
+    if path_str.startswith(("\\\\wsl.localhost\\", "\\\\wsl$\\")):
+        # Remove the UNC prefix and distro name
+        # \\wsl.localhost\Ubuntu\home\ram -> /home/ram
+        # \\wsl$\Ubuntu\home\ram -> /home/ram
+        
+        # Split by backslashes and remove empty parts
+        parts = [p for p in path_str.replace("/", "\\").split("\\") if p]
+        
+        # parts[0] = 'wsl.localhost' or 'wsl
 async def generate_speech(request: GenerateSpeechRequest) -> str:
     """Generate high-quality speech from text using Kokoro TTS.
 

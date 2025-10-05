@@ -11,14 +11,36 @@ A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface
 ## Features
 
 - **Kokoro-82M TTS Engine**: Open-weight model with 82M parameters (510 tokens per pass)
+- **🌐 Streamlit Web UI**: Enterprise-grade management interface with real-time preview (OPTIONAL)
 - **Audio Enhancement**: Professional processing with librosa (normalization, noise reduction, fade in/out)
-- **MCP Server**: Model Context Protocol integration for Claude Desktop, Cursor, and other AI tools
-- **CLI Interface**: Command-line tools for quick generation
+- **MCP Server**: Model Context Protocol integration for Claude Desktop, Cursor, and other AI tools (OPTIONAL)
+- **CLI Interface**: Command-line tools for quick generation (OPTIONAL)
 - **Batch Processing**: Generate multiple audio files efficiently
 - **Script Processing**: Convert complete video scripts with automatic text chunking
 - **Docker Support**: Containerization with docker-compose
 - **Enterprise Features**: Structured logging, configuration management, comprehensive testing
 - **CI/CD**: GitHub Actions pipeline with automated testing
+
+### Streamlit Web Interface (Optional)
+
+Beautiful web UI for managing all TTS functionality:
+
+- 🎯 **Single Generation** - Convert text with real-time preview
+- 📦 **Batch Processing** - Process multiple texts in one go
+- 📄 **Script Processing** - Complete video script conversion
+- 🔍 **Voice Explorer** - Compare all 12 voices side-by-side
+- ⚙️ **Configuration** - Manage settings visually
+- 📊 **Analytics** - Track generations with charts and statistics
+
+Install with: `pip install -e ".[streamlit]"` or `pip install -e ".[complete]"`
+
+**Quick Start:**
+```bash
+python run_streamlit.py
+# Opens at http://localhost:8501
+```
+
+**📚 See [STREAMLIT_README.md](STREAMLIT_README.md) for complete Streamlit documentation.**
 
 ---
 
@@ -123,7 +145,7 @@ aparsoft-tts generate "Test message" -o test.wav
 
 ### Installation
 
-**System Dependencies:**
+**System Dependencies (Required):**
 
 ```bash
 # Ubuntu/Debian
@@ -137,16 +159,53 @@ brew install espeak ffmpeg
 # - ffmpeg: https://ffmpeg.org/download.html
 ```
 
-**Python Package:**
+**Python Package - Choose Your Installation:**
 
 ```bash
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install with all features
+# OPTION 1: Complete installation (RECOMMENDED)
+# Includes: TTS Engine + MCP Server + CLI + Streamlit Web UI
+pip install -e ".[complete]"
+
+# OPTION 2: Without Streamlit (Developers)
+# Includes: TTS Engine + MCP Server + CLI (no web UI)
 pip install -e ".[mcp,cli]"
+
+# OPTION 3: Streamlit Only
+# Includes: TTS Engine + Streamlit Web UI (no MCP, no CLI)
+pip install -e ".[streamlit]"
+
+# OPTION 4: Core Only (Minimal)
+# Includes: TTS Engine only (Python API)
+pip install -e .
+
+# OPTION 5: Everything (Contributors)
+# Includes: All features + development tools
+pip install -e ".[all]"
 ```
+
+**📚 See [INSTALLATION.md](INSTALLATION.md) for detailed installation options and troubleshooting.**
+
+### Quick Launch
+
+**Streamlit Web UI:**
+```bash
+# Cross-platform launcher
+python run_streamlit.py
+
+# Or use platform-specific scripts
+./run_streamlit.sh      # Linux/macOS
+run_streamlit.bat        # Windows
+
+# Or direct
+streamlit run streamlit_app.py
+```
+
+**MCP Server (for Claude Desktop/Cursor):**
+- See [MCP Integration](#model-context-protocol-mcp-integration) section below
 
 ### Basic Usage
 
@@ -796,7 +855,6 @@ This project is licensed under the **Apache License 2.0** - see the [LICENSE](LI
 ## Support
 
 - **Email**: contact@aparsoft.com
-- **Phone**: +91 8904064878
 - **Website**: https://aparsoft.com
 - **Issues**: [GitHub Issues](https://github.com/aparsoft/kokoro-youtube-tts/issues)
 

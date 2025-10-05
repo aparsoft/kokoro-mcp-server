@@ -237,7 +237,6 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 ## Support
 
 - 📧 Email: contact@aparsoft.com
-- 📞 Phone: +91 8904064878
 - 🌐 Website: https://aparsoft.com
 - 📖 Full docs: See README.md
 

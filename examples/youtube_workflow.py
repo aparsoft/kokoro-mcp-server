@@ -41,7 +41,6 @@ def create_youtube_voiceover():
         """,
         "call_to_action": """
             If you want to deploy AI solutions quickly, visit aparsoft.com
-            or call us at +91 8904064878.
         """,
         "outro": """
             Thanks for watching! Subscribe to our channel for more AI tutorials,

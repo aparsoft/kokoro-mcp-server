@@ -21,7 +21,8 @@ keywords = [
     "model-context-protocol",
     "youtube",
     "audio",
-    "voice-synthesis"
+    "voice-synthesis",
+    "streamlit"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -48,14 +49,27 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# MCP Server support
 mcp = [
     "fastmcp>=2.0.0",
     "mcp>=1.2.0",
 ]
+
+# CLI interface
 cli = [
     "typer>=0.9.0",
     "rich>=13.0.0",
 ]
+
+# Streamlit web interface
+streamlit = [
+    "streamlit>=1.30.0",
+    "plotly>=5.18.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+]
+
+# Development tools
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -66,13 +80,22 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.4.0",
 ]
+
+# Documentation
 docs = [
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=1.3.0",
     "sphinx-autodoc-typehints>=1.24.0",
 ]
+
+# All features (MCP + CLI + Streamlit + Dev + Docs)
 all = [
-    "aparsoft-tts[mcp,cli,dev,docs]",
+    "aparsoft-tts[mcp,cli,streamlit,dev,docs]",
+]
+
+# Complete installation without development tools
+complete = [
+    "aparsoft-tts[mcp,cli,streamlit]",
 ]
 
 [project.urls]
@@ -157,6 +180,8 @@ module = [
     "kokoro.*",
     "librosa.*",
     "soundfile.*",
+    "streamlit.*",
+    "plotly.*",
 ]
 ignore_missing_imports = true
 
