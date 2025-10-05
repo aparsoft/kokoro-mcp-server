@@ -78,19 +78,23 @@ def setup_logging(config: LoggingConfig | None = None) -> None:
         config.log_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Configure standard library logging
-    # Determine output stream (use stderr for MCP compatibility)
-    if config.output == "stdout":
-        stream = sys.stdout
-    elif config.output == "stderr":
-        stream = sys.stderr
+    # For MCP compatibility: suppress stdlib logging to avoid JSON parsing errors
+    # Only structlog messages should go to stderr in JSON format
+    if config.output in ("stdout", "stderr"):
+        # Disable stdlib logging handlers to prevent non-JSON output
+        logging.root.handlers.clear()
+        # Set high level to suppress unwanted logs
+        logging.basicConfig(
+            format="%(message)s",
+            level=logging.CRITICAL + 1,  # Suppress all stdlib logs
+            handlers=[],  # No handlers
+        )
     else:
-        stream = None  # File only
-    
-    logging.basicConfig(
-        format="%(message)s",
-        stream=stream,
-        level=getattr(logging, config.level),
-    )
+        # File-only logging can use normal format
+        logging.basicConfig(
+            format="%(message)s",
+            level=getattr(logging, config.level),
+        )
 
     # Add file handler if needed
     if config.output in ("file", "both"):

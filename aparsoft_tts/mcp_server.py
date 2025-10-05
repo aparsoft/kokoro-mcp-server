@@ -56,11 +56,15 @@ Debugging:
 """
 
 import asyncio
+import warnings
 from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
+
+# Suppress all warnings to prevent non-JSON output in MCP
+warnings.filterwarnings("ignore")
 
 from aparsoft_tts.config import get_config
 from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES, TTSEngine
@@ -70,11 +74,25 @@ from aparsoft_tts.utils.logging import bind_context, get_logger, setup_logging
 # Initialize logging - force stderr for MCP compatibility
 import sys
 import os
+import logging
 from aparsoft_tts.config import LoggingConfig
+
+# Suppress ALL non-structlog logging to prevent JSON parsing errors in MCP
+# This prevents library warnings and other non-JSON output from interfering
+logging.root.handlers.clear()
+logging.root.addHandler(logging.NullHandler())
+logging.root.setLevel(logging.CRITICAL + 1)
+
+# Suppress specific noisy loggers that might output to stderr
+for logger_name in ["PIL", "matplotlib", "kokoro", "transformers", "torch", 
+                     "librosa", "soundfile", "numba", "urllib3", "huggingface_hub"]:
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
+    logging.getLogger(logger_name).propagate = False
+    logging.getLogger(logger_name).addHandler(logging.NullHandler())
 
 # Create MCP-compatible logging config
 mcp_logging_config = LoggingConfig(
-    level=os.getenv("LOG_LEVEL", "WARNING"),
+    level=os.getenv("LOG_LEVEL", "ERROR"),  # Only errors by default
     format="json",
     output="stderr",  # Always use stderr for MCP
     include_timestamp=False,  # Reduce noise
@@ -115,7 +133,7 @@ class GenerateSpeechRequest(BaseModel):
     )
     output_file: str = Field(
         default="output.wav",
-        description="Output filename",
+        description="Output file path (absolute or relative to current directory)",
     )
     enhance: bool = Field(
         default=True,
@@ -127,7 +145,7 @@ class BatchGenerateRequest(BaseModel):
     """Request model for batch_generate tool."""
 
     texts: list[str] = Field(..., description="List of texts to convert", min_length=1)
-    output_dir: str = Field(default="outputs", description="Output directory")
+    output_dir: str = Field(default="outputs", description="Output directory (absolute or relative to current directory)")
     voice: str = Field(default="am_michael", description="Voice to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
@@ -135,8 +153,8 @@ class BatchGenerateRequest(BaseModel):
 class ProcessScriptRequest(BaseModel):
     """Request model for process_script tool."""
 
-    script_path: str = Field(..., description="Path to script file")
-    output_path: str = Field(default="voiceover.wav", description="Output file path")
+    script_path: str = Field(..., description="Path to script file (absolute or relative to current directory)")
+    output_path: str = Field(default="voiceover.wav", description="Output file path (absolute or relative to current directory)")
     gap_duration: float = Field(
         default=0.5, description="Gap between segments in seconds", ge=0.0, le=5.0
     )
@@ -179,36 +197,51 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
             text_length=len(request.text),
         )
 
+        # Convert to absolute path immediately
+        output_path_input = Path(request.output_file)
+        if not output_path_input.is_absolute():
+            # If relative path, resolve to absolute from current working directory
+            output_path_input = Path.cwd() / output_path_input
+        
+        # Ensure parent directory exists
+        output_path_input.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Convert to string for engine
+        output_file_abs = str(output_path_input.resolve())
+
         log.info(
             "mcp_generate_speech_request",
             voice=request.voice,
             speed=request.speed,
             enhance=request.enhance,
-            output_file=request.output_file,
+            output_file=output_file_abs,
         )
 
-        # Generate speech
+        # Generate speech with absolute path
         output_path = tts_engine.generate(
             text=request.text,
-            output_path=request.output_file,
+            output_path=output_file_abs,
             voice=request.voice,
             speed=request.speed,
             enhance=request.enhance,
         )
 
-        # Get file size
-        file_size = Path(output_path).stat().st_size
+        # Get file size and actual path
+        actual_path = Path(output_path).resolve()
+        file_size = actual_path.stat().st_size
         duration = len(request.text) * 0.08  # Rough estimate
 
         log.info(
             "mcp_generate_speech_success",
-            output_file=str(output_path),
+            output_file=str(actual_path),
             size_bytes=file_size,
         )
 
         return f"""✅ Speech generated successfully!
 
-File: {output_path}
+📁 FULL PATH: {actual_path}
+
+File: {actual_path.name}
 Voice: {request.voice}
 Speed: {request.speed}x
 Enhanced: {request.enhance}
@@ -289,15 +322,22 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
     try:
         bind_context(operation="batch_generate", num_texts=len(request.texts))
 
+        # Convert to absolute path
+        output_dir_path = Path(request.output_dir)
+        if not output_dir_path.is_absolute():
+            output_dir_path = Path.cwd() / output_dir_path
+        
+        output_dir_abs = str(output_dir_path.resolve())
+
         log.info(
             "mcp_batch_generate_request",
             num_texts=len(request.texts),
-            output_dir=request.output_dir,
+            output_dir=output_dir_abs,
         )
 
         paths = tts_engine.batch_generate(
             texts=request.texts,
-            output_dir=request.output_dir,
+            output_dir=output_dir_abs,
             voice=request.voice,
             speed=request.speed,
         )
@@ -307,10 +347,11 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
 Generated {len(paths)} audio files:
 """
         for i, path in enumerate(paths, 1):
-            size = Path(path).stat().st_size
-            result += f"  {i}. {path.name} ({size / 1024:.1f} KB)\n"
+            abs_path = Path(path).resolve()
+            size = abs_path.stat().st_size
+            result += f"  {i}. {abs_path} ({size / 1024:.1f} KB)\n"
 
-        result += f"\nOutput directory: {request.output_dir}\n"
+        result += f"\n📁 OUTPUT DIRECTORY: {output_dir_path.resolve()}\n"
         result += f"Voice: {request.voice}\n"
 
         log.info("mcp_batch_generate_success", num_files=len(paths))
@@ -347,25 +388,43 @@ async def process_script(request: ProcessScriptRequest) -> str:
     try:
         bind_context(operation="process_script", script_path=request.script_path)
 
+        # Convert script path to absolute
+        script_path_input = Path(request.script_path)
+        if not script_path_input.is_absolute():
+            script_path_input = Path.cwd() / script_path_input
+        script_path_abs = str(script_path_input.resolve())
+
+        # Convert output path to absolute
+        output_path_input = Path(request.output_path)
+        if not output_path_input.is_absolute():
+            output_path_input = Path.cwd() / output_path_input
+        
+        # Ensure output directory exists
+        output_path_input.parent.mkdir(parents=True, exist_ok=True)
+        output_path_abs = str(output_path_input.resolve())
+
         log.info(
             "mcp_process_script_request",
-            script_path=request.script_path,
-            output_path=request.output_path,
+            script_path=script_path_abs,
+            output_path=output_path_abs,
         )
 
         output_path = tts_engine.process_script(
-            script_path=request.script_path,
-            output_path=request.output_path,
+            script_path=script_path_abs,
+            output_path=output_path_abs,
             gap_duration=request.gap_duration,
             voice=request.voice,
             speed=request.speed,
         )
 
-        file_size = Path(output_path).stat().st_size
+        actual_path = Path(output_path).resolve()
+        file_size = actual_path.stat().st_size
 
         result = f"""✅ Script processed successfully!
 
-Output: {output_path}
+📁 FULL PATH: {actual_path}
+
+Output: {actual_path.name}
 Size: {file_size / 1024 / 1024:.2f} MB
 Voice: {request.voice}
 Speed: {request.speed}x
@@ -373,7 +432,7 @@ Gap between segments: {request.gap_duration}s
 
 Your complete voiceover is ready to use!"""
 
-        log.info("mcp_process_script_success", output_path=str(output_path))
+        log.info("mcp_process_script_success", output_path=str(actual_path))
         return result
 
     except FileNotFoundError as e:
