@@ -747,7 +747,7 @@ with tab4:
 
     comparison_text = st.text_area(
         "Enter text for voice comparison",
-        value="Welcome to Aparsoft TTS. This is a demonstration of our text-to-speech capabilities.",
+        value="Welcome to Aparsoft TTS. This is a demonstration of kokora-powered open-source text-to-speech capabilities.",
         height=100,
     )
 
