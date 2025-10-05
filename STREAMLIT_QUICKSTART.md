@@ -286,11 +286,9 @@ config/
 
 3. **Read Full Documentation**
    - `STREAMLIT_README.md` - Feature details
-   - `DEPLOYMENT_GUIDE.md` - Production setup
    - `README.md` - Core library docs
 
 4. **Production Deployment**
-   - Follow DEPLOYMENT_GUIDE.md
    - Set up authentication
    - Configure SSL/HTTPS
    - Enable monitoring
@@ -301,7 +299,6 @@ config/
 - `STREAMLIT_README.md` - App features
 - `QUICKSTART.md` - TTS library guide
 - `TUTORIAL.md` - Comprehensive tutorial
-- `DEPLOYMENT_GUIDE.md` - Production setup
 
 ### Support
 - 📧 Email: contact@aparsoft.com

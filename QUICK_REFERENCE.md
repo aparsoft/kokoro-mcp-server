@@ -120,9 +120,7 @@ config/custom_config.json     # Saved configs
 - `INSTALLATION.md` - Installation guide
 - `STREAMLIT_QUICKSTART.md` - Quick start
 - `STREAMLIT_README.md` - Full features
-- `DEPLOYMENT_GUIDE.md` - Production
 - `README.md` - Core library
-- `ISSUES_RESOLVED.md` - Bug fixes
 
 ## Streamlit Tabs
 
