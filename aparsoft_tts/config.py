@@ -146,7 +146,7 @@ class LoggingConfig(BaseSettings):
 
     # Output
     format: Literal["json", "console"] = Field(default="console", description="Log output format")
-    output: Literal["stdout", "file", "both"] = Field(
+    output: Literal["stdout", "stderr", "file", "both"] = Field(
         default="stdout", description="Log output destination"
     )
     log_file: Path = Field(default=Path("logs/aparsoft_tts.log"), description="Log file path")

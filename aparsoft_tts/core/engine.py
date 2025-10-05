@@ -170,11 +170,12 @@ class TTSEngine(LoggerMixin):
     def _count_tokens(self, text: str, lang_code: str = "a") -> int:
         """Count phonemized tokens for text.
 
-        Uses Kokoro's phonemization and tokenization to get accurate
-        token count. This is critical for preventing rushed speech.
+        Uses Kokoro's pipeline G2P to get accurate token count.
+        This is critical for preventing rushed speech.
 
         Args:
             text: Input text
+            lang_code: Language code for phonemization
 
         Returns:
             Number of phonemized tokens
@@ -184,13 +185,21 @@ class TTSEngine(LoggerMixin):
             phonemization fails.
         """
         try:
-            # Import here to avoid issues with kokoro's __init__.py not exporting these
-            from kokoro import phonemize, tokenize
+            # Get the pipeline for this language
+            pipeline = self._get_pipeline(lang_code)
             
-            phonemes = phonemize(text, lang=lang_code)
-            tokens = tokenize(phonemes)
-            return len(tokens)
-        except (ImportError, Exception) as e:
+            # Use pipeline's G2P to get phonemes
+            # For English (lang_code 'a' or 'b'), g2p returns (phonemes, tokens)
+            if lang_code in 'ab':
+                ps, tokens = pipeline.g2p(text)
+                # Return phoneme count
+                return len(ps) if ps else 0
+            else:
+                # For other languages, g2p returns (phonemes, _)
+                ps, _ = pipeline.g2p(text)
+                return len(ps) if ps else 0
+                
+        except Exception as e:
             # Fallback: rough estimate
             # Average: 1 token ≈ 4 characters for English
             self.log.warning("token_count_fallback", error=str(e), using_estimate=True)

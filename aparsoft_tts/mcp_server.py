@@ -67,8 +67,20 @@ from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES, TTS
 from aparsoft_tts.utils.exceptions import AparsoftTTSError
 from aparsoft_tts.utils.logging import bind_context, get_logger, setup_logging
 
-# Initialize logging
-setup_logging()
+# Initialize logging - force stderr for MCP compatibility
+import sys
+import os
+from aparsoft_tts.config import LoggingConfig
+
+# Create MCP-compatible logging config
+mcp_logging_config = LoggingConfig(
+    level=os.getenv("LOG_LEVEL", "WARNING"),
+    format="json",
+    output="stderr",  # Always use stderr for MCP
+    include_timestamp=False,  # Reduce noise
+    include_caller=False,
+)
+setup_logging(mcp_logging_config)
 log = get_logger(__name__)
 
 # Get configuration

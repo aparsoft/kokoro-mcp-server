@@ -78,9 +78,17 @@ def setup_logging(config: LoggingConfig | None = None) -> None:
         config.log_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Configure standard library logging
+    # Determine output stream (use stderr for MCP compatibility)
+    if config.output == "stdout":
+        stream = sys.stdout
+    elif config.output == "stderr":
+        stream = sys.stderr
+    else:
+        stream = None  # File only
+    
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout if config.output == "stdout" else None,
+        stream=stream,
         level=getattr(logging, config.level),
     )
 
@@ -117,7 +125,9 @@ def setup_logging(config: LoggingConfig | None = None) -> None:
     if config.format == "json":
         processors.append(structlog.processors.JSONRenderer())
     else:
-        processors.append(structlog.dev.ConsoleRenderer(colors=True))
+        # Disable colors for stderr output (MCP compatibility)
+        use_colors = config.output == "stdout"
+        processors.append(structlog.dev.ConsoleRenderer(colors=use_colors))
 
     # Configure structlog
     structlog.configure(
