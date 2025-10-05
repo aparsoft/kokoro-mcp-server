@@ -1,7 +1,7 @@
 {
   "voice": "am_michael",
   "lang_code": "a",
-  "speed": 1.1,
+  "speed": 1.3,
   "repo_id": "hexgrad/Kokoro-82M",
   "sample_rate": 24000,
   "enhance_audio": true,
