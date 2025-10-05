@@ -1,4 +1,4 @@
-# Kokoro YouTube TTS
+# Kokoro MCP SERVER: Text To Sppech (TTS)
 
 A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) with audio enhancement, Model Context Protocol (MCP) server integration, CLI interface, and Docker deployment.
 

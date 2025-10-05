@@ -3,7 +3,7 @@ alabaster==1.0.0
 altair==5.5.0
 annotated-types==0.7.0
 anyio==4.11.0
--e git+https://github.com/aparsoft/kokoro-mcp-server.git@f2a78e07c0864cdeed7987d1a657e4233117bd77#egg=aparsoft_tts
+git+https://github.com/aparsoft/kokoro-mcp-server.git@f2a78e07c0864cdeed7987d1a657e4233117bd77
 asttokens==3.0.0
 attrs==25.3.0
 audioread==3.0.1
@@ -13,7 +13,7 @@ beautifulsoup4==4.14.2
 black==25.9.0
 bleach==6.2.0
 blinker==1.9.0
-blis==1.2.1
+blis>=1.3.0
 cachetools==6.2.0
 catalogue==2.0.10
 certifi==2025.8.3
@@ -195,7 +195,7 @@ sounddevice==0.5.2
 soundfile==0.13.1
 soupsieve==2.8
 soxr==1.0.0
-spacy==3.8.7
+spacy>=3.8.0,<3.9.0
 spacy-curated-transformers==0.3.1
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
