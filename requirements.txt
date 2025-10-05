@@ -218,7 +218,7 @@ structlog==25.4.0
 sympy==1.14.0
 tenacity==9.1.2
 termcolor==3.1.0
-thinc==8.3.4
+thinc
 threadpoolctl==3.6.0
 tinycss2==1.4.0
 tokenizers==0.22.1
