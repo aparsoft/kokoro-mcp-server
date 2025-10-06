@@ -57,7 +57,9 @@ Debugging:
 
 import asyncio
 import warnings
-from pathlib import Path
+import os
+import platform
+from pathlib import Path, PureWindowsPath, PurePosixPath
 from typing import Any
 
 from fastmcp import FastMCP
@@ -124,6 +126,56 @@ try:
 except Exception as e:
     log.error("mcp_server_initialization_failed", error=str(e))
     raise
+
+
+def normalize_path(path_str: str) -> Path:
+    """Normalize paths to handle Windows, Linux, and WSL paths robustly.
+
+    This function handles three types of paths:
+    1. WSL paths: \\wsl.localhost\\Ubuntu\\home\\user\\file.txt
+    2. Windows paths: C:\\Users\\user\\file.txt
+    3. Linux paths: /home/user/file.txt
+
+    Args:
+        path_str: Input path string
+
+    Returns:
+        Normalized Path object that works on the current platform
+
+    Example:
+        normalize_path("\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\ram\\\\test.wav")
+    """
+    path_str = path_str.strip()
+
+    # Detect WSL path by looking for 'wsl.localhost' or 'wsl\localhost' patterns
+    # This handles various formats that Windows/Claude might send
+    is_wsl_path = (
+        "wsl.localhost" in path_str.lower()
+        or "wsl\\localhost" in path_str.lower()
+        or "wsl/localhost" in path_str.lower()
+    )
+
+    if is_wsl_path:
+        # Extract the Linux path portion
+        # Format: \\wsl.localhost\\Ubuntu\\home\\user\\file.txt -> /home/user/file.txt
+        parts = path_str.replace("\\", "/").split("/")
+        # Remove empty strings and 'wsl.localhost' and distro name
+        parts = [p for p in parts if p and p not in ("wsl.localhost", "wsl", "localhost")]
+        if parts and parts[0].lower() in ("ubuntu", "debian", "kali", "alpine", "arch", "fedora"):
+            parts.pop(0)  # Remove distro name
+
+        linux_path = "/" + "/".join(parts)
+
+        # If we're on WSL/Linux, use the extracted Linux path directly
+        if platform.system() == "Linux" or os.path.exists("/proc/version"):
+            return Path(linux_path)
+        else:
+            # On Windows, keep the WSL path format
+            return Path(path_str)
+
+    # For Windows absolute paths (C:\\, D:\\, etc.) or Linux absolute paths (/home, /usr, etc.)
+    # Just use Path directly - it will handle them correctly
+    return Path(path_str)
 
 
 # Pydantic models for request validation
@@ -215,10 +267,11 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
             text_length=len(request.text),
         )
 
-        # Convert to absolute path immediately
-        output_path_input = Path(request.output_file)
+        # Normalize the path to handle WSL/Windows/Linux paths
+        output_path_input = normalize_path(request.output_file)
+
+        # If it's a relative path, make it absolute from cwd
         if not output_path_input.is_absolute():
-            # If relative path, resolve to absolute from current working directory
             output_path_input = Path.cwd() / output_path_input
 
         # Ensure parent directory exists
@@ -340,8 +393,8 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
     try:
         bind_context(operation="batch_generate", num_texts=len(request.texts))
 
-        # Convert to absolute path
-        output_dir_path = Path(request.output_dir)
+        # Normalize and convert to absolute path
+        output_dir_path = normalize_path(request.output_dir)
         if not output_dir_path.is_absolute():
             output_dir_path = Path.cwd() / output_dir_path
 
@@ -406,14 +459,14 @@ async def process_script(request: ProcessScriptRequest) -> str:
     try:
         bind_context(operation="process_script", script_path=request.script_path)
 
-        # Convert script path to absolute
-        script_path_input = Path(request.script_path)
+        # Normalize and convert script path to absolute
+        script_path_input = normalize_path(request.script_path)
         if not script_path_input.is_absolute():
             script_path_input = Path.cwd() / script_path_input
         script_path_abs = str(script_path_input.resolve())
 
-        # Convert output path to absolute
-        output_path_input = Path(request.output_path)
+        # Normalize and convert output path to absolute
+        output_path_input = normalize_path(request.output_path)
         if not output_path_input.is_absolute():
             output_path_input = Path.cwd() / output_path_input
 
