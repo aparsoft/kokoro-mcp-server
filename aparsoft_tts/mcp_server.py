@@ -1,12 +1,22 @@
 """Comprehensive MCP server for Aparsoft TTS using FastMCP.
 
 This MCP server exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
-Cursor, and other MCP-compatible clients. It provides four main tools:
+Cursor, and other MCP-compatible clients. It provides six main tools:
 
 1. generate_speech: Convert text to speech with voice and enhancement options
 2. list_voices: Get available voices organized by gender and accent
 3. batch_generate: Process multiple texts efficiently
 4. process_script: Convert complete video scripts to voiceovers
+5. generate_podcast: Create multi-voice conversational podcasts (see PODCAST_GUIDELINES.md)
+6. transcribe_speech: Convert audio to text using OpenAI Whisper
+
+🎙️ PODCAST GUIDELINES:
+For best practices on creating natural, ethical AI podcasts, see PODCAST_GUIDELINES.md
+Key requirements:
+- ALWAYS include AI disclosure in first segment (Apple/YouTube requirement)
+- Use conversational style with questions/reactions, NOT newsreader style
+- Vary speech speeds (1.0-1.2x) based on emotional context
+- Keep segments short (15-25 per episode) for dynamic feel
 
 The server uses FastMCP (https://github.com/jlowin/fastmcp) for standardized
 MCP protocol implementation with features like:
@@ -283,9 +293,7 @@ class TranscribeAudioRequest(BaseModel):
         """Validate model size."""
         valid_sizes = ["tiny", "base", "small", "medium", "large"]
         if v not in valid_sizes:
-            raise ValueError(
-                f"Invalid model size '{v}'. Must be one of: {', '.join(valid_sizes)}"
-            )
+            raise ValueError(f"Invalid model size '{v}'. Must be one of: {', '.join(valid_sizes)}")
         return v
 
     @field_validator("task")
@@ -630,21 +638,56 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
     - Educational content with narrator and character voices
     - Radio-style shows with different segments
 
+    🎙️ PODCAST BEST PRACTICES (See PODCAST_GUIDELINES.md for full details):
+
+    ⚠️ MANDATORY AI DISCLOSURE:
+    - ALWAYS include AI disclosure in the FIRST segment
+    - Required by Apple Podcasts, YouTube, and ethical guidelines
+    - Example: "This podcast is created using Claude by Anthropic for content
+      creation and Aparsoft TTS for voice synthesis."
+
+    ✅ NATURAL CONVERSATION (Not Newsreader Style):
+    - Use questions between hosts: "What do you think about this?"
+    - Add reactions: "Really?" "That's huge!" "Exactly!"
+    - Vary speeds: 1.0x for important info, 1.1-1.2x for excitement
+    - Keep segments short (15-25 per episode for dynamic feel)
+    - Mix statement lengths: short reactions + medium explanations
+
+    🎚️ SPEED GUIDELINES:
+    - Disclosure/Important: 1.0x
+    - Casual conversation: 1.0-1.05x
+    - Excitement/reveals: 1.1-1.2x
+    - Questions: 0.95-1.0x
+
     Args:
         request: Podcast generation parameters including segments list
 
     Returns:
         Detailed summary of generated podcast with segment breakdown
 
-    Example:
+    Example - Natural Podcast Style:
         >>> await generate_podcast(GeneratePodcastRequest(
         ...     segments=[
-        ...         PodcastSegment(text="Welcome to the show", voice="am_michael", speed=1.0, name="intro"),
-        ...         PodcastSegment(text="Great to be here", voice="af_bella", speed=0.95, name="guest"),
-        ...         PodcastSegment(text="Thanks for listening", voice="am_michael", speed=1.0, name="outro")
+        ...         PodcastSegment(
+        ...             text="Welcome to AI Insights. Before we dive in, this podcast is "
+        ...                  "created using Claude and Aparsoft TTS.",
+        ...             voice="af_sarah", speed=1.0, name="disclosure_intro"
+        ...         ),
+        ...         PodcastSegment(
+        ...             text="Thanks Sarah! Have you seen today's big announcement?",
+        ...             voice="am_michael", speed=1.1, name="michael_excited"
+        ...         ),
+        ...         PodcastSegment(
+        ...             text="I have! Are you ready for this?",
+        ...             voice="af_sarah", speed=1.05, name="sarah_tease"
+        ...         ),
+        ...         PodcastSegment(
+        ...             text="Hit me.",
+        ...             voice="am_michael", speed=1.0, name="michael_ready"
+        ...         )
         ...     ],
         ...     output_path="podcast_episode.wav",
-        ...     gap_duration=0.6
+        ...     gap_duration=0.4
         ... ))
     """
     try:
