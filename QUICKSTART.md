@@ -205,9 +205,9 @@ npx @modelcontextprotocol/inspector \
 
 In Claude/Cursor, ask:
 ```
-"List all available TTS voices"
+"List all available TTS voices using aparsoft-tts tool"
 
-"Generate speech for 'Hello from MCP' using am_michael voice and save as test.wav"
+"Generate speech for 'Hello from Aparsoft Kokoro TTS mcp integration' using am_michael voice and save as test.wav"
 ```
 
 Look for the MCP indicator (🔌) in the chat input area.
