@@ -33,8 +33,12 @@ aparsoft-tts generate "text" -o file.wav
 aparsoft-tts voices
 aparsoft-tts script file.txt -o output.wav
 
-# MCP Server (runs automatically in Claude/Cursor)
-python -m aparsoft_tts.mcp_server
+# MCP Server
+python -m aparsoft_tts.mcp_server              # Run server (auto in Claude/Cursor)
+python -m aparsoft_tts.mcp_server --help       # Test if server works
+npx @modelcontextprotocol/inspector \          # Interactive testing UI
+  --command "/path/to/venv/bin/python" \
+  --args "-m" "aparsoft_tts.mcp_server"
 ```
 
 ## Common Tasks
@@ -169,6 +173,31 @@ Gap: 0.5s
 - **Streamlit:** http://localhost:8501
 - **MCP Inspector:** http://localhost:6274
 - **Website:** https://aparsoft.com
+
+## MCP Server Testing
+
+**Test Server Runs:**
+```bash
+python -m aparsoft_tts.mcp_server --help
+```
+
+**Test with Claude/Cursor:**
+```
+# In Claude Desktop or Cursor, ask:
+"Generate speech for 'Welcome to our channel' using am_michael voice and save as intro.wav"
+
+"List all available TTS voices"
+
+"Process script.txt and create voiceover with 0.8s gaps"
+```
+
+**Interactive Testing (MCP Inspector):**
+```bash
+npx @modelcontextprotocol/inspector \
+  --command "/path/to/venv/bin/python" \
+  --args "-m" "aparsoft_tts.mcp_server"
+# Opens UI at http://localhost:6274
+```
 
 ## Support
 

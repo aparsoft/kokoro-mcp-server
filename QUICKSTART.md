@@ -113,22 +113,62 @@ engine.generate("Custom configuration example", "output.wav")
 
 ## MCP Server Setup
 
-### For Claude Desktop
+### Step 1: Find Your Python Path
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```bash
+# Activate virtual environment first
+source /path/to/venv/bin/activate
 
+# Get absolute path
+which python  # Linux/macOS
+where python  # Windows
+
+# Example output: /home/ram/projects/youtube-creator/venv/bin/python
+```
+
+### Step 2: Configure Claude Desktop
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Linux:** `~/.config/Claude/claude_desktop_config.json`  
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+**For Native Linux/macOS:**
 ```json
 {
   "mcpServers": {
     "aparsoft-tts": {
-      "command": "/path/to/venv/bin/python",
-      "args": ["-m", "aparsoft_tts.mcp_server"]
+      "command": "/absolute/path/to/venv/bin/python",
+      "args": ["-m", "aparsoft_tts.mcp_server"],
+      "env": {
+        "LOG_LEVEL": "WARNING"
+      }
     }
   }
 }
 ```
 
-### For Cursor
+**For Windows WSL:**
+```json
+{
+  "mcpServers": {
+    "aparsoft-tts": {
+      "command": "wsl",
+      "args": [
+        "-e",
+        "/home/ram/projects/youtube-creator/venv/bin/python",
+        "-W", "ignore",
+        "-m", "aparsoft_tts.mcp_server"
+      ],
+      "env": {
+        "LOG_LEVEL": "WARNING",
+        "PYTHONWARNINGS": "ignore"
+      }
+    }
+  }
+}
+```
+
+### Step 3: Configure Cursor
 
 Add to `~/.cursor/mcp.json`:
 
@@ -136,12 +176,41 @@ Add to `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "aparsoft-tts": {
-      "command": "/path/to/venv/bin/python",
+      "command": "/absolute/path/to/venv/bin/python",
       "args": ["-m", "aparsoft_tts.mcp_server"]
     }
   }
 }
 ```
+
+### Step 4: Test MCP Server
+
+```bash
+# Test server runs correctly
+python -m aparsoft_tts.mcp_server --help
+
+# Interactive testing with MCP Inspector
+npx @modelcontextprotocol/inspector \
+  --command "/path/to/venv/bin/python" \
+  --args "-m" "aparsoft_tts.mcp_server"
+# Opens at http://localhost:6274
+```
+
+### Step 5: Restart Client
+
+- **Claude Desktop:** Completely quit (Cmd/Ctrl+Q) and restart
+- **Cursor:** Completely close and reopen
+
+### Step 6: Verify Connection
+
+In Claude/Cursor, ask:
+```
+"List all available TTS voices"
+
+"Generate speech for 'Hello from MCP' using am_michael voice and save as test.wav"
+```
+
+Look for the MCP indicator (🔌) in the chat input area.
 
 ## Docker Deployment
 
@@ -213,25 +282,68 @@ pytest --cov=aparsoft_tts
 
 ## Troubleshooting
 
-### espeak-ng not found
+### System Dependencies
+
+**espeak-ng not found:**
 ```bash
 # Ubuntu/Debian
-sudo apt-get install espeak-ng
+sudo apt-get install espeak-ng ffmpeg
 
 # macOS
-brew install espeak
+brew install espeak ffmpeg
 ```
 
-### Audio quality issues
-Enable audio enhancement:
+### Audio Issues
+
+**Quality issues:**
 ```python
 engine.generate(text="...", enhance=True)
 ```
 
-### Import errors
-Make sure you're in the virtual environment:
+**No audio generated:**
 ```bash
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+# Check espeak works
+espeak-ng --version
+
+# Test TTS directly
+python -c "from aparsoft_tts import TTSEngine; TTSEngine().generate('test', 'test.wav')"
+```
+
+### Python/Import Errors
+
+**Import errors:**
+```bash
+# Activate virtual environment
+source venv/bin/activate  # Linux/macOS
+venv\Scripts\activate     # Windows
+
+# Reinstall package
+pip install -e ".[mcp,cli]"
+```
+
+### MCP Connection Issues
+
+**"Could not attach to MCP server":**
+- Use **absolute path** to Python: `/full/path/to/venv/bin/python`
+- Test server: `python -m aparsoft_tts.mcp_server`
+- Check Python version: `python --version` (needs 3.10+)
+- Completely restart Claude/Cursor (not just reload)
+
+**"Tool not found":**
+```bash
+# Reinstall MCP dependencies
+pip install -e ".[mcp]"
+
+# Verify FastMCP
+python -c "from fastmcp import FastMCP; print('OK')"
+```
+
+**Check Logs:**
+```bash
+# Claude Desktop
+tail -f ~/Library/Logs/Claude/mcp*.log          # macOS
+tail -f ~/.config/Claude/logs/mcp*.log          # Linux
+type %APPDATA%\Claude\logs\mcp*.log            # Windows
 ```
 
 ## Support

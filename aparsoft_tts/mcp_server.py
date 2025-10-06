@@ -84,8 +84,18 @@ logging.root.addHandler(logging.NullHandler())
 logging.root.setLevel(logging.CRITICAL + 1)
 
 # Suppress specific noisy loggers that might output to stderr
-for logger_name in ["PIL", "matplotlib", "kokoro", "transformers", "torch", 
-                     "librosa", "soundfile", "numba", "urllib3", "huggingface_hub"]:
+for logger_name in [
+    "PIL",
+    "matplotlib",
+    "kokoro",
+    "transformers",
+    "torch",
+    "librosa",
+    "soundfile",
+    "numba",
+    "urllib3",
+    "huggingface_hub",
+]:
     logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
     logging.getLogger(logger_name).propagate = False
     logging.getLogger(logger_name).addHandler(logging.NullHandler())
@@ -145,7 +155,10 @@ class BatchGenerateRequest(BaseModel):
     """Request model for batch_generate tool."""
 
     texts: list[str] = Field(..., description="List of texts to convert", min_length=1)
-    output_dir: str = Field(default="outputs", description="Output directory (absolute or relative to current directory)")
+    output_dir: str = Field(
+        default="outputs",
+        description="Output directory (absolute or relative to current directory)",
+    )
     voice: str = Field(default="am_michael", description="Voice to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
@@ -153,8 +166,13 @@ class BatchGenerateRequest(BaseModel):
 class ProcessScriptRequest(BaseModel):
     """Request model for process_script tool."""
 
-    script_path: str = Field(..., description="Path to script file (absolute or relative to current directory)")
-    output_path: str = Field(default="voiceover.wav", description="Output file path (absolute or relative to current directory)")
+    script_path: str = Field(
+        ..., description="Path to script file (absolute or relative to current directory)"
+    )
+    output_path: str = Field(
+        default="voiceover.wav",
+        description="Output file path (absolute or relative to current directory)",
+    )
     gap_duration: float = Field(
         default=0.5, description="Gap between segments in seconds", ge=0.0, le=5.0
     )
@@ -162,30 +180,7 @@ class ProcessScriptRequest(BaseModel):
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
-def convert_wsl_path_to_linux(path_str: str) -> str:
-    """Convert Windows WSL UNC paths to Linux paths.
-    
-    Converts paths like:
-    - \\wsl.localhost\Ubuntu\home\ram\file.txt -> /home/ram/file.txt
-    - \\wsl$\Ubuntu\home\ram\file.txt -> /home/ram/file.txt
-    - /home/ram/file.txt -> /home/ram/file.txt (unchanged)
-    
-    Args:
-        path_str: Path string (Windows WSL UNC or Linux format)
-        
-    Returns:
-        Linux-style path
-    """
-    # Check if it's a Windows WSL UNC path
-    if path_str.startswith(("\\\\wsl.localhost\\", "\\\\wsl$\\")):
-        # Remove the UNC prefix and distro name
-        # \\wsl.localhost\Ubuntu\home\ram -> /home/ram
-        # \\wsl$\Ubuntu\home\ram -> /home/ram
-        
-        # Split by backslashes and remove empty parts
-        parts = [p for p in path_str.replace("/", "\\").split("\\") if p]
-        
-        # parts[0] = 'wsl.localhost' or 'wsl
+@mcp.tool()
 async def generate_speech(request: GenerateSpeechRequest) -> str:
     """Generate high-quality speech from text using Kokoro TTS.
 
@@ -225,10 +220,10 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         if not output_path_input.is_absolute():
             # If relative path, resolve to absolute from current working directory
             output_path_input = Path.cwd() / output_path_input
-        
+
         # Ensure parent directory exists
         output_path_input.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Convert to string for engine
         output_file_abs = str(output_path_input.resolve())
 
@@ -349,7 +344,7 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
         output_dir_path = Path(request.output_dir)
         if not output_dir_path.is_absolute():
             output_dir_path = Path.cwd() / output_dir_path
-        
+
         output_dir_abs = str(output_dir_path.resolve())
 
         log.info(
@@ -421,7 +416,7 @@ async def process_script(request: ProcessScriptRequest) -> str:
         output_path_input = Path(request.output_path)
         if not output_path_input.is_absolute():
             output_path_input = Path.cwd() / output_path_input
-        
+
         # Ensure output directory exists
         output_path_input.parent.mkdir(parents=True, exist_ok=True)
         output_path_abs = str(output_path_input.resolve())
