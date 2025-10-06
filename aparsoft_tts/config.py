@@ -48,6 +48,26 @@ class TTSConfig(BaseSettings):
         default=0.1, ge=0.0, le=1.0, description="Fade in/out duration in seconds"
     )
 
+    # Podcast-specific settings
+    podcast_default_gap: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=5.0,
+        description="Default gap between podcast segments in seconds",
+    )
+    podcast_crossfade_duration: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Crossfade duration between podcast segments in seconds",
+    )
+    podcast_max_segments: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum number of segments allowed in a podcast",
+    )
+
     # Token Limits (Kokoro-82M constraints)
     # Based on: https://github.com/remsky/Kokoro-FastAPI
     # Kokoro can process up to 510 tokens, but quality degrades >400 tokens

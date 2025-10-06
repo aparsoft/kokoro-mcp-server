@@ -339,3 +339,142 @@ def get_audio_duration(audio: NDArray[np.float32], sample_rate: int = 24000) -> 
         >>> print(f"{duration:.2f}s")
     """
     return len(audio) / sample_rate
+
+
+def transcribe_audio(
+    audio_path: Path | str,
+    output_path: Path | str | None = None,
+    model_size: str = "base",
+    language: str | None = None,
+    task: str = "transcribe",
+) -> dict:
+    """Transcribe audio file to text using OpenAI Whisper.
+
+    This function uses OpenAI's Whisper model for speech-to-text transcription.
+    Note: This requires the 'openai-whisper' package to be installed.
+    Install with: pip install openai-whisper
+
+    Args:
+        audio_path: Path to audio file (wav, mp3, mp4, etc.)
+        output_path: Optional path to save transcription as text file.
+                    If None, returns transcription without saving.
+        model_size: Whisper model size. Options:
+                   - 'tiny': Fastest, least accurate (~1GB RAM)
+                   - 'base': Fast, good accuracy (~1GB RAM) [DEFAULT]
+                   - 'small': Balanced (~2GB RAM)
+                   - 'medium': High accuracy (~5GB RAM)
+                   - 'large': Best accuracy (~10GB RAM)
+        language: Language code (e.g., 'en', 'es', 'fr'). None = auto-detect
+        task: Task type: 'transcribe' (same language) or 'translate' (to English)
+
+    Returns:
+        Dictionary containing:
+        - 'text': Full transcription text
+        - 'segments': List of timestamped segments
+        - 'language': Detected/specified language
+
+    Raises:
+        AudioProcessingError: If transcription fails
+        ImportError: If openai-whisper is not installed
+
+    Example:
+        >>> # Basic transcription
+        >>> result = transcribe_audio("speech.wav")
+        >>> print(result['text'])
+
+        >>> # Save to file
+        >>> result = transcribe_audio(
+        ...     "speech.wav",
+        ...     output_path="transcript.txt",
+        ...     model_size="medium"
+        ... )
+
+        >>> # Translate to English
+        >>> result = transcribe_audio(
+        ...     "french_speech.wav",
+        ...     task="translate"
+        ... )
+    """
+    try:
+        # Import whisper (lazy import to avoid requiring it for TTS-only usage)
+        try:
+            import whisper
+        except ImportError:
+            raise ImportError(
+                "OpenAI Whisper is required for speech-to-text. "
+                "Install with: pip install openai-whisper"
+            )
+
+        audio_path = Path(audio_path)
+
+        if not audio_path.exists():
+            raise AudioProcessingError(f"Audio file not found: {audio_path}")
+
+        log.info(
+            "transcribing_audio",
+            path=str(audio_path),
+            model_size=model_size,
+            language=language,
+            task=task,
+        )
+
+        # Suppress Whisper's verbose output to prevent MCP JSON parsing errors
+        import sys
+        import os
+        
+        # Save original stderr
+        original_stderr = sys.stderr
+        
+        try:
+            # Redirect stderr to devnull during model loading and transcription
+            sys.stderr = open(os.devnull, 'w')
+            
+            # Load Whisper model (this outputs progress bars)
+            log.debug("loading_whisper_model", model_size=model_size)
+            model = whisper.load_model(model_size)
+
+            # Transcribe audio (also outputs progress)
+            log.debug("transcribing", file=str(audio_path))
+            result = model.transcribe(
+                str(audio_path),
+                language=language,
+                task=task,
+                verbose=False,  # Disable verbose output
+            )
+        finally:
+            # Restore stderr
+            sys.stderr.close()
+            sys.stderr = original_stderr
+
+        # Extract transcription
+        transcription_text = result["text"].strip()
+        detected_language = result.get("language", language or "unknown")
+
+        log.info(
+            "transcription_complete",
+            text_length=len(transcription_text),
+            language=detected_language,
+            num_segments=len(result.get("segments", [])),
+        )
+
+        # Save to file if output path provided
+        if output_path:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(transcription_text)
+
+            log.info("transcription_saved", path=str(output_path))
+
+        return {
+            "text": transcription_text,
+            "segments": result.get("segments", []),
+            "language": detected_language,
+        }
+
+    except ImportError:
+        raise
+    except Exception as e:
+        log.error("transcription_failed", error=str(e), path=str(audio_path))
+        raise AudioProcessingError(f"Failed to transcribe audio: {e}") from e

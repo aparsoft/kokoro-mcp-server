@@ -55,6 +55,11 @@ mcp = [
     "mcp>=1.2.0",
 ]
 
+# Speech-to-Text support (OpenAI Whisper)
+stt = [
+    "openai-whisper>=20231117",
+]
+
 # CLI interface
 cli = [
     "typer>=0.9.0",
@@ -88,14 +93,14 @@ docs = [
     "sphinx-autodoc-typehints>=1.24.0",
 ]
 
-# All features (MCP + CLI + Streamlit + Dev + Docs)
+# All features (MCP + CLI + STT + Streamlit + Dev + Docs)
 all = [
-    "aparsoft-tts[mcp,cli,streamlit,dev,docs]",
+    "aparsoft-tts[mcp,cli,stt,streamlit,dev,docs]",
 ]
 
-# Complete installation without development tools
+# Complete installation without development tools (includes STT)
 complete = [
-    "aparsoft-tts[mcp,cli,streamlit]",
+    "aparsoft-tts[mcp,cli,stt,streamlit]",
 ]
 
 [project.urls]

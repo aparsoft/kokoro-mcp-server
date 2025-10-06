@@ -63,7 +63,7 @@ from pathlib import Path, PureWindowsPath, PurePosixPath
 from typing import Any
 
 from fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")
@@ -230,6 +230,102 @@ class ProcessScriptRequest(BaseModel):
     )
     voice: str = Field(default="am_michael", description="Voice to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class PodcastSegment(BaseModel):
+    """Model for a single podcast segment with voice and speed control."""
+
+    text: str = Field(..., description="Segment text content", min_length=1, max_length=10000)
+    voice: str = Field(
+        default="am_michael",
+        description=f"Voice for this segment. Available: {', '.join(ALL_VOICES)}",
+    )
+    speed: float = Field(
+        default=1.0, description="Speech speed for this segment (0.5-2.0)", ge=0.5, le=2.0
+    )
+    name: str = Field(default="", description="Optional segment name/label for identification")
+
+    @field_validator("voice")
+    @classmethod
+    def validate_voice(cls, v: str) -> str:
+        """Validate voice is in available voices."""
+        if v not in ALL_VOICES:
+            raise ValueError(f"Invalid voice '{v}'. Must be one of: {', '.join(ALL_VOICES)}")
+        return v
+
+
+class TranscribeAudioRequest(BaseModel):
+    """Request model for transcribe_speech tool."""
+
+    audio_path: str = Field(
+        ..., description="Path to audio file (wav, mp3, mp4, etc.) - absolute or relative"
+    )
+    output_path: str = Field(
+        default="transcript.txt",
+        description="Output text file path (absolute or relative to current directory)",
+    )
+    model_size: str = Field(
+        default="base",
+        description="Whisper model size: tiny, base, small, medium, large (larger = more accurate)",
+    )
+    language: str = Field(
+        default="",
+        description="Language code (e.g., 'en', 'es', 'fr'). Leave empty for auto-detection",
+    )
+    task: str = Field(
+        default="transcribe",
+        description="Task: 'transcribe' (same language) or 'translate' (to English)",
+    )
+
+    @field_validator("model_size")
+    @classmethod
+    def validate_model_size(cls, v: str) -> str:
+        """Validate model size."""
+        valid_sizes = ["tiny", "base", "small", "medium", "large"]
+        if v not in valid_sizes:
+            raise ValueError(
+                f"Invalid model size '{v}'. Must be one of: {', '.join(valid_sizes)}"
+            )
+        return v
+
+    @field_validator("task")
+    @classmethod
+    def validate_task(cls, v: str) -> str:
+        """Validate task type."""
+        valid_tasks = ["transcribe", "translate"]
+        if v not in valid_tasks:
+            raise ValueError(f"Invalid task '{v}'. Must be one of: {', '.join(valid_tasks)}")
+        return v
+
+
+class GeneratePodcastRequest(BaseModel):
+    """Request model for generate_podcast tool."""
+
+    segments: list[PodcastSegment] = Field(
+        ...,
+        description="List of podcast segments with individual voice/speed settings",
+        min_length=1,
+    )
+    output_path: str = Field(
+        default="podcast.wav",
+        description="Output file path (absolute or relative to current directory)",
+    )
+    gap_duration: float = Field(
+        default=None,  # Will use config default if not provided
+        description="Gap between segments in seconds (uses config default if not specified)",
+        ge=0.0,
+        le=5.0,
+    )
+    enhance: bool = Field(default=True, description="Apply audio enhancement to all segments")
+
+    @field_validator("segments")
+    @classmethod
+    def validate_segments_count(cls, v: list[PodcastSegment]) -> list[PodcastSegment]:
+        """Validate segments count doesn't exceed maximum."""
+        max_segments = config.tts.podcast_max_segments
+        if len(v) > max_segments:
+            raise ValueError(f"Too many segments: {len(v)}. Maximum allowed: {max_segments}")
+        return v
 
 
 @mcp.tool()
@@ -515,6 +611,357 @@ Your complete voiceover is ready to use!"""
     except Exception as e:
         log.error("mcp_process_script_unexpected_error", error=str(e))
         return f"❌ Unexpected error: {str(e)}"
+
+
+@mcp.tool()
+async def generate_podcast(request: GeneratePodcastRequest) -> str:
+    """Generate multi-voice podcast with different voices and speeds per segment.
+
+    This tool enables podcast-style content creation with:
+    - Multiple segments, each with its own voice and speed
+    - Support for host/guest conversations with different voices
+    - Configurable gaps between segments
+    - Professional audio enhancement
+    - Automatic segment combination into a single file
+
+    Perfect for:
+    - Podcast episodes with multiple speakers
+    - Interview-style content with host and guest voices
+    - Educational content with narrator and character voices
+    - Radio-style shows with different segments
+
+    Args:
+        request: Podcast generation parameters including segments list
+
+    Returns:
+        Detailed summary of generated podcast with segment breakdown
+
+    Example:
+        >>> await generate_podcast(GeneratePodcastRequest(
+        ...     segments=[
+        ...         PodcastSegment(text="Welcome to the show", voice="am_michael", speed=1.0, name="intro"),
+        ...         PodcastSegment(text="Great to be here", voice="af_bella", speed=0.95, name="guest"),
+        ...         PodcastSegment(text="Thanks for listening", voice="am_michael", speed=1.0, name="outro")
+        ...     ],
+        ...     output_path="podcast_episode.wav",
+        ...     gap_duration=0.6
+        ... ))
+    """
+    try:
+        # Bind context for logging
+        bind_context(
+            operation="generate_podcast",
+            num_segments=len(request.segments),
+            voices_used=list(set(seg.voice for seg in request.segments)),
+        )
+
+        # Use config default if gap_duration not specified
+        gap_duration = (
+            request.gap_duration
+            if request.gap_duration is not None
+            else config.tts.podcast_default_gap
+        )
+
+        log.info(
+            "mcp_generate_podcast_request",
+            num_segments=len(request.segments),
+            gap_duration=gap_duration,
+            enhance=request.enhance,
+        )
+
+        # Validate segments
+        if not request.segments:
+            raise ValueError("At least one segment is required")
+
+        # Normalize output path
+        output_path_input = normalize_path(request.output_path)
+        if not output_path_input.is_absolute():
+            output_path_input = Path.cwd() / output_path_input
+
+        # Ensure output directory exists
+        output_path_input.parent.mkdir(parents=True, exist_ok=True)
+        output_path_abs = str(output_path_input.resolve())
+
+        log.info("mcp_generate_podcast_starting", output_path=output_path_abs)
+
+        # Generate each segment
+        audio_segments = []
+        segment_details = []
+
+        for i, segment in enumerate(request.segments, 1):
+            segment_name = segment.name or f"segment_{i}"
+
+            log.info(
+                "mcp_generate_podcast_segment",
+                segment_num=i,
+                segment_name=segment_name,
+                voice=segment.voice,
+                speed=segment.speed,
+                text_length=len(segment.text),
+            )
+
+            try:
+                # Generate audio for this segment
+                audio = tts_engine.generate(
+                    text=segment.text,
+                    voice=segment.voice,
+                    speed=segment.speed,
+                    enhance=request.enhance,
+                )
+
+                # Ensure we have numpy array, not Path
+                if isinstance(audio, Path):
+                    raise AparsoftTTSError(
+                        f"Unexpected Path return for segment {i}. Expected audio array."
+                    )
+
+                audio_segments.append(audio)
+
+                # Track segment details for summary
+                from aparsoft_tts.utils.audio import get_audio_duration
+
+                duration = get_audio_duration(audio, config.tts.sample_rate)
+                segment_details.append(
+                    {
+                        "name": segment_name,
+                        "voice": segment.voice,
+                        "speed": segment.speed,
+                        "duration": duration,
+                        "text_preview": segment.text[:50]
+                        + ("..." if len(segment.text) > 50 else ""),
+                    }
+                )
+
+                log.info(
+                    "mcp_generate_podcast_segment_complete",
+                    segment_num=i,
+                    duration=duration,
+                )
+
+            except Exception as e:
+                log.error(
+                    "mcp_generate_podcast_segment_failed",
+                    segment_num=i,
+                    segment_name=segment_name,
+                    error=str(e),
+                )
+                raise AparsoftTTSError(
+                    f"Failed to generate segment {i} ({segment_name}): {str(e)}"
+                ) from e
+
+        # Combine segments with gaps
+        log.info("mcp_generate_podcast_combining", num_segments=len(audio_segments))
+
+        from aparsoft_tts.utils.audio import combine_audio_segments, save_audio
+
+        combined_audio = combine_audio_segments(
+            audio_segments,
+            sample_rate=config.tts.sample_rate,
+            gap_duration=gap_duration,
+            crossfade_duration=config.tts.podcast_crossfade_duration,
+        )
+
+        # Save combined audio
+        output_path = save_audio(
+            combined_audio,
+            output_path_abs,
+            sample_rate=config.tts.sample_rate,
+            format=config.tts.output_format,
+        )
+
+        # Get final file stats
+        actual_path = Path(output_path).resolve()
+        file_size = actual_path.stat().st_size
+        total_duration = get_audio_duration(combined_audio, config.tts.sample_rate)
+
+        # Build detailed summary
+        result = f"""✅ Podcast generated successfully!
+
+📁 FULL PATH: {actual_path}
+
+📊 PODCAST DETAILS:
+Total Segments: {len(request.segments)}
+Total Duration: {total_duration:.1f}s ({total_duration / 60:.1f} min)
+File Size: {file_size / 1024 / 1024:.2f} MB
+Gap Duration: {gap_duration}s
+Audio Enhanced: {request.enhance}
+
+🎙️ SEGMENT BREAKDOWN:
+"""
+
+        for i, detail in enumerate(segment_details, 1):
+            result += f"""  {i}. {detail['name']}
+     Voice: {detail['voice']}
+     Speed: {detail['speed']}x
+     Duration: {detail['duration']:.1f}s
+     Text: "{detail['text_preview']}"
+
+"""
+
+        result += f"""Your podcast is ready to publish!"""
+
+        log.info(
+            "mcp_generate_podcast_success",
+            output_path=str(actual_path),
+            num_segments=len(request.segments),
+            total_duration=total_duration,
+            file_size_mb=file_size / 1024 / 1024,
+        )
+
+        return result
+
+    except ValueError as e:
+        log.error("mcp_generate_podcast_validation_error", error=str(e))
+        return f"❌ Validation Error: {str(e)}"
+    except AparsoftTTSError as e:
+        log.error("mcp_generate_podcast_error", error=str(e))
+        return f"❌ Error: {str(e)}"
+    except Exception as e:
+        log.error("mcp_generate_podcast_unexpected_error", error=str(e))
+        return f"❌ Unexpected error: {str(e)}"
+
+
+@mcp.tool()
+async def transcribe_speech(request: TranscribeAudioRequest) -> str:
+    """Transcribe audio file to text using OpenAI Whisper.
+
+    Convert speech in audio files (WAV, MP3, MP4, etc.) to written text.
+    Perfect for transcribing voiceovers, interviews, meetings, or any audio content.
+
+    Features:
+    - Multiple model sizes (tiny to large) for speed/accuracy tradeoff
+    - Automatic language detection
+    - Translation to English
+    - Support for 99 languages
+    - Handles background noise and various accents
+
+    Note: Requires 'openai-whisper' package. Install with:
+    pip install openai-whisper
+
+    Args:
+        request: Transcription parameters
+
+    Returns:
+        Success message with transcription details and file location
+
+    Example:
+        >>> await transcribe_speech(TranscribeAudioRequest(
+        ...     audio_path="interview.wav",
+        ...     output_path="interview_transcript.txt",
+        ...     model_size="base"
+        ... ))
+    """
+    try:
+        # Bind request context for logging
+        bind_context(
+            operation="transcribe_speech",
+            model_size=request.model_size,
+        )
+
+        # Normalize audio path
+        audio_path_input = normalize_path(request.audio_path)
+        if not audio_path_input.is_absolute():
+            audio_path_input = Path.cwd() / audio_path_input
+
+        # Check if file exists
+        if not audio_path_input.exists():
+            return f"❌ Error: Audio file not found: {audio_path_input}"
+
+        audio_path_abs = str(audio_path_input.resolve())
+
+        # Normalize output path
+        output_path_input = normalize_path(request.output_path)
+        if not output_path_input.is_absolute():
+            output_path_input = Path.cwd() / output_path_input
+
+        # Ensure output directory exists
+        output_path_input.parent.mkdir(parents=True, exist_ok=True)
+        output_path_abs = str(output_path_input.resolve())
+
+        log.info(
+            "mcp_transcribe_speech_request",
+            audio_path=audio_path_abs,
+            output_path=output_path_abs,
+            model_size=request.model_size,
+        )
+
+        # Import transcription function
+        from aparsoft_tts.utils.audio import transcribe_audio
+
+        # Transcribe audio
+        language = request.language if request.language else None
+        result = transcribe_audio(
+            audio_path=audio_path_abs,
+            output_path=output_path_abs,
+            model_size=request.model_size,
+            language=language,
+            task=request.task,
+        )
+
+        # Get file stats
+        actual_path = Path(output_path_abs).resolve()
+        file_size = actual_path.stat().st_size
+        transcription_text = result["text"]
+        detected_language = result["language"]
+        num_segments = len(result.get("segments", []))
+
+        # Create preview (first 200 characters)
+        preview = (
+            transcription_text[:200] + "..."
+            if len(transcription_text) > 200
+            else transcription_text
+        )
+
+        result_msg = f"""✅ Audio transcribed successfully!
+
+📁 FULL PATH: {actual_path}
+
+📊 TRANSCRIPTION DETAILS:
+Audio File: {Path(audio_path_abs).name}
+Output File: {actual_path.name}
+Model Used: {request.model_size}
+Detected Language: {detected_language}
+Task: {request.task}
+Text Length: {len(transcription_text)} characters
+Word Count: ~{len(transcription_text.split())} words
+Segments: {num_segments}
+File Size: {file_size / 1024:.1f} KB
+
+📝 PREVIEW:
+"{preview}"
+
+Your transcription is ready!"""
+
+        log.info(
+            "mcp_transcribe_speech_success",
+            output_path=str(actual_path),
+            text_length=len(transcription_text),
+            language=detected_language,
+        )
+
+        return result_msg
+
+    except ImportError as e:
+        log.error("mcp_transcribe_speech_import_error", error=str(e))
+        return """❌ Error: OpenAI Whisper is not installed.
+
+To use speech-to-text functionality, install it with:
+
+pip install openai-whisper
+
+Also ensure ffmpeg is installed on your system:
+- Ubuntu/Debian: sudo apt-get install ffmpeg
+- macOS: brew install ffmpeg
+- Windows: Download from https://ffmpeg.org/download.html"""
+    except FileNotFoundError as e:
+        log.error("mcp_transcribe_speech_file_not_found", error=str(e))
+        return f"❌ Audio file not found: {request.audio_path}\n\nPlease check the file path and try again."
+    except AparsoftTTSError as e:
+        log.error("mcp_transcribe_speech_error", error=str(e), error_type=type(e).__name__)
+        return f"❌ Error: {str(e)}"
+    except Exception as e:
+        log.error("mcp_transcribe_speech_unexpected_error", error=str(e))
+        return f"❌ Unexpected error: {str(e)}\n\nPlease check your audio file and system setup."
 
 
 def main() -> None:

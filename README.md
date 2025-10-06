@@ -338,6 +338,67 @@ engine.process_script(
 # Long scripts are automatically chunked and combined seamlessly.
 ```
 
+### Podcast Generation (Multi-Voice)
+
+Create podcast-style content with different voices and speeds per segment. Perfect for interviews, dialogues, or multi-speaker content.
+
+**Via MCP (Claude Desktop/Cursor):**
+```
+"Create a podcast with these segments:
+- Intro by am_michael: 'Welcome to Tech Talk'
+- Guest by af_bella at 0.95 speed: 'Thanks for having me'
+- Outro by am_michael: 'See you next week'"
+```
+
+**Via Python API:**
+```python
+from aparsoft_tts.utils.audio import combine_audio_segments, save_audio
+
+# Define podcast segments with different voices/speeds
+segments = [
+    {"text": "Welcome to the show", "voice": "am_michael", "speed": 1.0},
+    {"text": "Great to be here", "voice": "af_bella", "speed": 0.95},
+    {"text": "Thanks for listening", "voice": "am_michael", "speed": 1.0},
+]
+
+# Generate each segment
+audio_segments = []
+for seg in segments:
+    audio = engine.generate(
+        text=seg["text"],
+        voice=seg["voice"],
+        speed=seg["speed"]
+    )
+    audio_segments.append(audio)
+
+# Combine with gaps
+combined = combine_audio_segments(
+    audio_segments,
+    sample_rate=24000,
+    gap_duration=0.6  # Pause between segments
+)
+
+# Save
+save_audio(combined, "podcast.wav", sample_rate=24000)
+```
+
+**Via Streamlit UI:**
+
+1. Open Streamlit: `python run_streamlit.py`
+2. Navigate to "🎙️ Podcast Generation" tab
+3. Click "➕ Add Segment" for each speaker
+4. Configure voice, speed, and text per segment
+5. Adjust gap duration in settings panel
+6. Click "🎧 Generate Podcast"
+
+**Features:**
+- Per-segment voice control (host/guest conversations)
+- Individual speed settings (emphasis/pacing)
+- Configurable gaps between segments
+- Audio enhancement (normalization, crossfades)
+- Segment reordering (move up/down)
+- Template support for quick start
+
 ### Streaming Generation
 
 ```python

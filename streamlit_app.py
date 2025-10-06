@@ -38,7 +38,13 @@ from aparsoft_tts.utils.audio import enhance_audio, get_audio_duration
 from aparsoft_tts.config import get_config
 
 # Import error handling utilities
-from streamlit_utils import streamlit_error_handler, show_exception, safe_json_serialize
+from streamlit_utils import (
+    streamlit_error_handler,
+    show_exception,
+    safe_json_serialize,
+    extract_voices_from_history,
+    normalize_voice_column,
+)
 
 # ==========================================
 # PAGE CONFIGURATION
@@ -170,6 +176,12 @@ if "total_generations" not in st.session_state:
 
 if "total_duration" not in st.session_state:
     st.session_state.total_duration = 0.0
+
+if "podcast_segments" not in st.session_state:
+    st.session_state.podcast_segments = []
+
+if "podcast_segment_counter" not in st.session_state:
+    st.session_state.podcast_segment_counter = 0
 
 # ==========================================
 # HELPER FUNCTIONS
@@ -314,13 +326,15 @@ st.markdown(
 )
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
     [
-        "🎯 Single Generation",
-        "📦 Batch Processing",
-        "📄 Script Processing",
-        "🔍 Voice Explorer",
-        "⚙️ Configuration",
+        "🎯 Single",
+        "📦 Batch",
+        "📄 Script",
+        "🎙️ Podcast",
+        "🎤 Transcribe",
+        "🔍 Voices",
+        "⚙️ Config",
         "📊 Analytics",
     ]
 )
@@ -740,9 +754,560 @@ with tab3:
                 show_exception(e, "Script processing failed")
 
 # ==========================================
-# TAB 4: VOICE EXPLORER
+# TAB 4: PODCAST GENERATION
 # ==========================================
 with tab4:
+    st.markdown("## 🎙️ Podcast Generation")
+    st.markdown("Create multi-voice podcasts with different voices and speeds per segment")
+
+    # Helper functions for segment management
+    def add_podcast_segment():
+        """Add a new podcast segment"""
+        st.session_state.podcast_segment_counter += 1
+        st.session_state.podcast_segments.append(
+            {
+                "id": st.session_state.podcast_segment_counter,
+                "name": f"Segment {st.session_state.podcast_segment_counter}",
+                "text": "",
+                "voice": "am_michael",
+                "speed": 1.0,
+            }
+        )
+
+    def remove_podcast_segment(segment_id: int):
+        """Remove a podcast segment by ID"""
+        st.session_state.podcast_segments = [
+            seg for seg in st.session_state.podcast_segments if seg["id"] != segment_id
+        ]
+
+    def move_segment_up(index: int):
+        """Move segment up in the list"""
+        if index > 0:
+            segments = st.session_state.podcast_segments
+            segments[index], segments[index - 1] = segments[index - 1], segments[index]
+
+    def move_segment_down(index: int):
+        """Move segment down in the list"""
+        segments = st.session_state.podcast_segments
+        if index < len(segments) - 1:
+            segments[index], segments[index + 1] = segments[index + 1], segments[index]
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        st.markdown("### Podcast Segments")
+
+        if not st.session_state.podcast_segments:
+            st.info("🎬 No segments yet. Click 'Add Segment' to start building your podcast!")
+        else:
+            # Display segments
+            for idx, segment in enumerate(st.session_state.podcast_segments):
+                with st.expander(
+                    f"🎤 {segment['name']} ({segment['voice']} @ {segment['speed']}x)",
+                    expanded=True,
+                ):
+                    seg_col1, seg_col2, seg_col3 = st.columns([2, 1, 1])
+
+                    with seg_col1:
+                        segment["name"] = st.text_input(
+                            "Segment Name",
+                            value=segment["name"],
+                            key=f"pod_name_{segment['id']}",
+                            help="Optional label for this segment",
+                        )
+
+                    with seg_col2:
+                        segment["voice"] = st.selectbox(
+                            "Voice",
+                            options=ALL_VOICES,
+                            index=ALL_VOICES.index(segment["voice"]),
+                            key=f"pod_voice_{segment['id']}",
+                        )
+
+                    with seg_col3:
+                        segment["speed"] = st.slider(
+                            "Speed",
+                            min_value=0.5,
+                            max_value=2.0,
+                            value=segment["speed"],
+                            step=0.05,
+                            key=f"pod_speed_{segment['id']}",
+                        )
+
+                    segment["text"] = st.text_area(
+                        "Segment Text",
+                        value=segment["text"],
+                        height=100,
+                        key=f"pod_text_{segment['id']}",
+                        placeholder="Enter the text for this segment...",
+                    )
+
+                    # Segment actions
+                    action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+
+                    with action_col1:
+                        if st.button("⬆️ Move Up", key=f"pod_up_{segment['id']}"):
+                            move_segment_up(idx)
+                            st.rerun()
+
+                    with action_col2:
+                        if st.button("⬇️ Move Down", key=f"pod_down_{segment['id']}"):
+                            move_segment_down(idx)
+                            st.rerun()
+
+                    with action_col3:
+                        if st.button("🗑️ Remove", key=f"pod_remove_{segment['id']}"):
+                            remove_podcast_segment(segment["id"])
+                            st.rerun()
+
+                    with action_col4:
+                        char_count = len(segment["text"])
+                        st.caption(f"📝 {char_count} chars")
+
+    with col2:
+        st.markdown("### Settings")
+
+        podcast_gap = st.slider(
+            "Gap Between Segments",
+            min_value=0.0,
+            max_value=3.0,
+            value=0.6,
+            step=0.1,
+            help="Pause duration between segments",
+        )
+
+        podcast_enhance = st.checkbox(
+            "Audio Enhancement",
+            value=True,
+            help="Apply normalization, noise reduction, and fades",
+        )
+
+        podcast_output = st.text_input(
+            "Output Filename",
+            value=f"podcast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav",
+        )
+
+        st.markdown("---")
+
+        st.markdown("### Quick Actions")
+
+        if st.button("➕ Add Segment", type="primary", use_container_width=True):
+            add_podcast_segment()
+            st.rerun()
+
+        if st.button("📋 Load Template", use_container_width=True):
+            # Load a sample podcast template
+            st.session_state.podcast_segments = [
+                {
+                    "id": 1,
+                    "name": "Intro (Host)",
+                    "text": "Welcome to our podcast. Today we have a special guest.",
+                    "voice": "am_michael",
+                    "speed": 1.0,
+                },
+                {
+                    "id": 2,
+                    "name": "Guest Response",
+                    "text": "Thanks for having me. I'm excited to be here.",
+                    "voice": "af_bella",
+                    "speed": 0.95,
+                },
+                {
+                    "id": 3,
+                    "name": "Outro (Host)",
+                    "text": "Thank you for joining us. See you next time!",
+                    "voice": "am_michael",
+                    "speed": 1.0,
+                },
+            ]
+            st.session_state.podcast_segment_counter = 3
+            st.rerun()
+
+        if st.button("🗑️ Clear All", use_container_width=True):
+            st.session_state.podcast_segments = []
+            st.session_state.podcast_segment_counter = 0
+            st.rerun()
+
+        st.markdown("---")
+
+        # Podcast info
+        st.markdown("### 📊 Podcast Info")
+        total_segments = len(st.session_state.podcast_segments)
+        total_chars = sum(len(seg["text"]) for seg in st.session_state.podcast_segments)
+        unique_voices = len(set(seg["voice"] for seg in st.session_state.podcast_segments))
+
+        st.metric("Total Segments", total_segments)
+        st.metric("Total Characters", total_chars)
+        st.metric("Unique Voices", unique_voices)
+
+    # Generate button
+    st.markdown("---")
+
+    if st.button("🎧 Generate Podcast", type="primary", use_container_width=True):
+        # Validate segments
+        valid_segments = [seg for seg in st.session_state.podcast_segments if seg["text"].strip()]
+
+        if not valid_segments:
+            st.error("❌ No segments with text. Please add content to at least one segment.")
+        else:
+            try:
+                engine = get_engine()
+
+                if engine:
+                    output_dir = Path("outputs/podcasts")
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    output_path = output_dir / podcast_output
+
+                    with st.spinner("🎙️ Generating podcast..."):
+                        start_time = time.time()
+
+                        # Generate each segment
+                        audio_segments = []
+                        segment_details = []
+
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+
+                        for i, segment in enumerate(valid_segments):
+                            status_text.text(
+                                f"🔊 Processing {i+1}/{len(valid_segments)}: {segment['name']}"
+                            )
+
+                            # Generate audio for this segment
+                            audio = engine.generate(
+                                text=segment["text"],
+                                voice=segment["voice"],
+                                speed=segment["speed"],
+                                enhance=podcast_enhance,
+                            )
+
+                            audio_segments.append(audio)
+
+                            # Get duration
+                            duration = get_audio_duration(audio, engine.config.sample_rate)
+
+                            segment_details.append(
+                                {
+                                    "name": segment["name"],
+                                    "voice": segment["voice"],
+                                    "speed": segment["speed"],
+                                    "duration": duration,
+                                    "chars": len(segment["text"]),
+                                }
+                            )
+
+                            progress_bar.progress((i + 1) / len(valid_segments))
+
+                        # Combine segments
+                        status_text.text("🔧 Combining segments...")
+
+                        from aparsoft_tts.utils.audio import combine_audio_segments, save_audio
+
+                        combined_audio = combine_audio_segments(
+                            audio_segments,
+                            sample_rate=engine.config.sample_rate,
+                            gap_duration=podcast_gap,
+                        )
+
+                        # Save
+                        save_audio(
+                            combined_audio,
+                            str(output_path),
+                            sample_rate=engine.config.sample_rate,
+                        )
+
+                        generation_time = time.time() - start_time
+                        total_duration = get_audio_duration(
+                            combined_audio, engine.config.sample_rate
+                        )
+                        file_size = output_path.stat().st_size
+
+                        progress_bar.empty()
+                        status_text.empty()
+
+                    # Success message
+                    st.success("✅ Podcast generated successfully!")
+
+                    # Metrics
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        st.metric("Total Duration", f"{total_duration:.1f}s")
+                    with col2:
+                        st.metric("File Size", f"{file_size/1024/1024:.2f} MB")
+                    with col3:
+                        st.metric("Generation Time", f"{generation_time:.1f}s")
+                    with col4:
+                        st.metric("Segments", len(valid_segments))
+
+                    # Segment breakdown
+                    st.markdown("### 🎙️ Segment Breakdown")
+
+                    breakdown_df = pd.DataFrame(segment_details)
+                    st.dataframe(breakdown_df, width="stretch", hide_index=True)
+
+                    # Audio player
+                    st.markdown("### 🎧 Preview Podcast")
+                    st.audio(str(output_path), format="audio/wav")
+
+                    # Download
+                    with open(output_path, "rb") as f:
+                        st.download_button(
+                            label="📥 Download Podcast",
+                            data=f,
+                            file_name=podcast_output,
+                            mime="audio/wav",
+                            use_container_width=True,
+                        )
+
+                    # Add to history
+                    add_to_history(
+                        {
+                            "type": "podcast",
+                            "num_segments": len(valid_segments),
+                            "voices_used": list(set(seg["voice"] for seg in valid_segments)),
+                            "gap_duration": podcast_gap,
+                            "enhance": podcast_enhance,
+                            "duration": total_duration,
+                            "file_size": file_size,
+                            "generation_time": generation_time,
+                            "output_path": str(output_path),
+                        }
+                    )
+
+            except Exception as e:
+                show_exception(e, "Podcast generation failed")
+
+# ==========================================
+# TAB 5: AUDIO TRANSCRIPTION
+# ==========================================
+with tab5:
+    st.markdown("## 🎤 Audio Transcription (Speech-to-Text)")
+    st.markdown("Transcribe audio files to text using OpenAI Whisper")
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.markdown("### Audio Input")
+
+        input_method = st.radio(
+            "Input Method",
+            options=["Upload Audio", "Select from Filesystem"],
+            horizontal=True,
+            key="stt_input_method",
+        )
+
+        audio_file_path = None
+
+        if input_method == "Upload Audio":
+            uploaded_audio = st.file_uploader(
+                "Upload audio file",
+                type=["wav", "mp3", "mp4", "mpeg", "mpga", "m4a", "webm"],
+                help="Supported formats: WAV, MP3, MP4, MPEG, MPGA, M4A, WEBM",
+            )
+
+            if uploaded_audio:
+                # Save uploaded file temporarily
+                temp_dir = Path("temp/uploads")
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                audio_file_path = temp_dir / uploaded_audio.name
+
+                with open(audio_file_path, "wb") as f:
+                    f.write(uploaded_audio.getbuffer())
+
+                st.success(f"✅ Loaded: {uploaded_audio.name}")
+
+                # Show audio player
+                st.audio(str(audio_file_path))
+
+        else:
+            audio_path_input = st.text_input(
+                "Enter audio file path",
+                placeholder="/path/to/audio.wav",
+                help="Enter absolute or relative path to audio file",
+            )
+
+            if audio_path_input:
+                audio_file_path = Path(audio_path_input)
+
+                if audio_file_path.exists():
+                    st.success(f"✅ File found: {audio_file_path.name}")
+                    try:
+                        st.audio(str(audio_file_path))
+                    except:
+                        st.warning(
+                            "⚠️ Unable to preview audio (format may not be supported for web playback)"
+                        )
+                else:
+                    st.error(f"❌ File not found: {audio_file_path}")
+                    audio_file_path = None
+
+    with col2:
+        st.markdown("### Settings")
+
+        model_size = st.selectbox(
+            "Whisper Model",
+            options=["tiny", "base", "small", "medium", "large"],
+            index=1,  # Default to 'base'
+            help="Larger models = better accuracy but slower",
+        )
+
+        # Model info
+        model_info = {
+            "tiny": "39M params, ~1GB RAM, Fastest",
+            "base": "74M params, ~1GB RAM, Recommended",
+            "small": "244M params, ~2GB RAM, Balanced",
+            "medium": "769M params, ~5GB RAM, High accuracy",
+            "large": "1550M params, ~10GB RAM, Best accuracy",
+        }
+        st.info(f"📊 {model_info[model_size]}")
+
+        language = st.text_input(
+            "Language (optional)",
+            placeholder="en, es, fr, etc.",
+            help="Leave empty for automatic detection",
+        )
+
+        task = st.selectbox(
+            "Task",
+            options=["transcribe", "translate"],
+            help="transcribe = same language, translate = to English",
+        )
+
+        transcript_filename = st.text_input(
+            "Output filename",
+            value=f"transcript_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+        )
+
+        st.markdown("---")
+        st.markdown("### 📖 Model Guide")
+        with st.expander("Click for model recommendations"):
+            st.markdown(
+                """
+            **tiny**: Quick testing  
+            **base**: Most use cases 🌟  
+            **small**: Balanced quality  
+            **medium**: Professional work  
+            **large**: Maximum accuracy  
+            """
+            )
+
+    # Transcribe button
+    st.markdown("---")
+
+    if st.button("🎙️ Transcribe Audio", type="primary", use_container_width=True):
+        if not audio_file_path:
+            st.error("❌ Please provide an audio file")
+        else:
+            try:
+                # Check if Whisper is installed
+                try:
+                    import whisper
+                except ImportError:
+                    st.error(
+                        """
+                    ❌ OpenAI Whisper is not installed!
+                    
+                    To use speech-to-text functionality, install it with:
+                    ```
+                    pip install openai-whisper
+                    ```
+                    
+                    Also ensure ffmpeg is installed on your system:
+                    - Ubuntu/Debian: `sudo apt-get install ffmpeg`
+                    - macOS: `brew install ffmpeg`
+                    - Windows: Download from https://ffmpeg.org/download.html
+                    """
+                    )
+                    st.stop()
+
+                from aparsoft_tts.utils.audio import transcribe_audio
+
+                output_dir = Path("outputs/transcripts")
+                output_dir.mkdir(parents=True, exist_ok=True)
+                transcript_path = output_dir / transcript_filename
+
+                with st.spinner(f"🔊 Transcribing with {model_size} model..."):
+                    start_time = time.time()
+
+                    result = transcribe_audio(
+                        audio_path=str(audio_file_path),
+                        output_path=str(transcript_path),
+                        model_size=model_size,
+                        language=language if language else None,
+                        task=task,
+                    )
+
+                    transcription_time = time.time() - start_time
+
+                # Success message
+                st.success("✅ Transcription completed successfully!")
+
+                # Metrics
+                col1, col2, col3, col4 = st.columns(4)
+
+                with col1:
+                    st.metric("Text Length", f"{len(result['text'])} chars")
+                with col2:
+                    st.metric("Word Count", f"~{len(result['text'].split())} words")
+                with col3:
+                    st.metric("Language", result["language"].upper())
+                with col4:
+                    st.metric("Time Taken", f"{transcription_time:.1f}s")
+
+                # Display transcription
+                st.markdown("### 📝 Transcription")
+                st.text_area(
+                    "Transcribed Text",
+                    value=result["text"],
+                    height=200,
+                    help="Copy or edit the transcription",
+                )
+
+                # Timestamped segments
+                if result["segments"]:
+                    st.markdown("### ⏱️ Timestamped Segments")
+
+                    with st.expander(f"View {len(result['segments'])} segments"):
+                        for i, segment in enumerate(result["segments"], 1):
+                            start = segment["start"]
+                            end = segment["end"]
+                            text = segment["text"].strip()
+                            st.text(f"[{start:6.1f}s - {end:6.1f}s] {text}")
+
+                # Download button
+                with open(transcript_path, "r", encoding="utf-8") as f:
+                    st.download_button(
+                        label="💾 Download Transcript",
+                        data=f.read(),
+                        file_name=transcript_filename,
+                        mime="text/plain",
+                        use_container_width=True,
+                    )
+
+                # Add to history
+                add_to_history(
+                    {
+                        "type": "transcription",
+                        "model_size": model_size,
+                        "language": result["language"],
+                        "task": task,
+                        "text_length": len(result["text"]),
+                        "word_count": len(result["text"].split()),
+                        "segments": len(result["segments"]),
+                        "transcription_time": transcription_time,
+                        "audio_file": str(audio_file_path.name),
+                        "output_path": str(transcript_path),
+                    }
+                )
+
+            except Exception as e:
+                show_exception(e, "Transcription failed")
+
+# ==========================================
+# TAB 6: VOICE EXPLORER
+# ==========================================
+with tab6:
     st.markdown("## 🔍 Voice Explorer")
     st.markdown("Compare and explore all available voices")
 
@@ -840,9 +1405,9 @@ with tab4:
                         show_exception(e, f"Voice sample generation failed for {voice}")
 
 # ==========================================
-# TAB 5: CONFIGURATION
+# TAB 7: CONFIGURATION
 # ==========================================
-with tab5:
+with tab7:
     st.markdown("## ⚙️ Configuration")
     st.markdown("Manage TTS engine and system settings")
 
@@ -944,10 +1509,11 @@ with tab5:
         except Exception as e:
             # Show detailed error with full traceback
             st.error(f"❌ Failed to save configuration: {str(e)}")
-            
+
             # Show full traceback in expandable section
             with st.expander("🔍 Full Error Details"):
                 import traceback
+
                 st.code(traceback.format_exc(), language="python")
 
     # Current Configuration Display
@@ -975,9 +1541,9 @@ with tab5:
         st.dataframe(config_df, width="stretch", hide_index=True)
 
 # ==========================================
-# TAB 6: ANALYTICS
+# TAB 8: ANALYTICS
 # ==========================================
-with tab6:
+with tab8:
     st.markdown("## 📊 Analytics & History")
     st.markdown("Track and analyze your TTS generation activity")
 
@@ -1034,7 +1600,10 @@ with tab6:
             )
 
         with col4:
-            unique_voices = df["voice"].nunique() if "voice" in df.columns else 0
+            # Calculate unique voices using utility function
+            voice_data = extract_voices_from_history(df)
+            unique_voices = len(set(voice_data))
+
             st.markdown(
                 """
             <div class='metric-card'>
@@ -1069,18 +1638,24 @@ with tab6:
         with col2:
             st.markdown("### 🎤 Voice Usage")
 
-            voice_counts = df["voice"].value_counts()
+            # Extract voices from history (handles both single and multi-voice)
+            voice_data = extract_voices_from_history(df)
 
-            fig = px.bar(
-                x=voice_counts.index,
-                y=voice_counts.values,
-                title="Voice Usage Count",
-                labels={"x": "Voice", "y": "Count"},
-                color=voice_counts.values,
-                color_continuous_scale="Purples",
-            )
+            if voice_data:
+                voice_counts = pd.Series(voice_data).value_counts()
 
-            st.plotly_chart(fig, use_container_width=True)
+                fig = px.bar(
+                    x=voice_counts.index,
+                    y=voice_counts.values,
+                    title="Voice Usage Count",
+                    labels={"x": "Voice", "y": "Count"},
+                    color=voice_counts.values,
+                    color_continuous_scale="Purples",
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No voice data available yet")
 
         # Timeline
         st.markdown("### 📅 Generation Timeline")
@@ -1105,12 +1680,26 @@ with tab6:
         # Recent History Table
         st.markdown("### 📜 Recent History")
 
-        display_cols = ["timestamp", "type", "voice", "duration", "generation_time"]
-        display_cols = [col for col in display_cols if col in df.columns]
+        # Select columns that exist in the dataframe
+        available_cols = [
+            "timestamp",
+            "type",
+            "voice",
+            "voices_used",
+            "duration",
+            "generation_time",
+        ]
+        display_cols = [col for col in available_cols if col in df.columns]
 
-        recent_df = df[display_cols].tail(10).sort_values("timestamp", ascending=False)
+        if display_cols:
+            recent_df = df[display_cols].tail(10).sort_values("timestamp", ascending=False)
 
-        st.dataframe(recent_df, width="stretch", hide_index=True)
+            # Normalize voice columns for display
+            display_df = normalize_voice_column(recent_df)
+
+            st.dataframe(display_df, width="stretch", hide_index=True)
+        else:
+            st.info("No history data available")
 
         # Export options
         st.markdown("---")
