@@ -46,7 +46,11 @@ python run_streamlit.py
 
 ## Building on Kokoro-82M
 
-We integrate Kokoro-82M's excellent TTS inference with development tooling and workflow enhancements. This toolkit adds:
+**What Kokoro-82M Provides Out-of-the-Box:**
+Kokoro-82M is an exceptional open-weight TTS model that delivers: core neural TTS inference with 82M parameters, a basic Python inference library (KPipeline), 10 professional voice packs (male/female, American/British), phonemization (G2P) system, and raw 24kHz audio output with a 510-token processing limit per pass.
+
+**What aparsoft-tts Adds:**
+We integrate Kokoro-82M's excellent TTS inference with comprehensive development tooling and workflow enhancements. This toolkit adds:
 
 1. **Audio post-processing** - Normalization, noise reduction, silence trimming, and fade in/out using librosa
 2. **Automated script workflows** - Direct script-to-voiceover conversion with paragraph detection and gap management
