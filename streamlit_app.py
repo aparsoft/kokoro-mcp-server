@@ -940,10 +940,24 @@ with tab4:
         st.metric("Total Characters", total_chars)
         st.metric("Unique Voices", unique_voices)
 
-    # Generate button
+    # Generate and Add Segment buttons at bottom
     st.markdown("---")
 
-    if st.button("🎧 Generate Podcast", type="primary", use_container_width=True):
+    # Create two columns for buttons
+    btn_col1, btn_col2 = st.columns(2)
+    
+    with btn_col1:
+        add_segment_bottom = st.button("➕ Add Segment", use_container_width=True, key="add_segment_bottom")
+    
+    with btn_col2:
+        generate_podcast = st.button("🎧 Generate Podcast", type="primary", use_container_width=True)
+    
+    # Handle add segment button click
+    if add_segment_bottom:
+        add_podcast_segment()
+        st.rerun()
+
+    if generate_podcast:
         # Validate segments
         valid_segments = [seg for seg in st.session_state.podcast_segments if seg["text"].strip()]
 
