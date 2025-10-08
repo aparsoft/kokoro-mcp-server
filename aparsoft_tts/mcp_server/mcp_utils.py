@@ -1,13 +1,14 @@
 # aparsoft_tts/mcp_server/mcp_utils.py
 
-"""MCP Resources and Prompts for Aparsoft TTS Server.
+"""Utility functions for MCP Resources and Prompts.
 
-This module provides:
-1. Resources - Read-only data sources for voice information, presets, etc.
-2. Prompts - Guided workflows for podcast creation, voice selection, etc.
+Provides shared utility functions used by mcp_resources.py and mcp_prompts.py:
+  - Voice characteristic database (quality grades, training hours, use cases)
+  - Preset configuration templates for common use cases
+  - Prompt template generators for guided workflows
 
-Resources help Claude make informed decisions by providing context.
-Prompts guide users through complex workflows with best practices.
+Based on official Kokoro-82M voice documentation with quality grades (A-F scale)
+and training duration data from https://huggingface.co/hexgrad/Kokoro-82M
 """
 
 import json

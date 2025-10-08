@@ -1,20 +1,17 @@
 # aparsoft_tts/mcp_server/mcp_tools.py
 
-"""
-Comprehensive MCP tools for Aparsoft TTS using FastMCP.
+"""MCP Tools implementation for Aparsoft TTS.
 
-This MCP tools exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
-Cursor, and other MCP-compatible clients.
+Implements 6 tools using FastMCP's @mcp.tool decorator pattern:
+  - generate_speech: Convert text to speech with voice/speed/enhancement options
+  - list_voices: Get available voices organized by gender and accent
+  - batch_generate: Process multiple texts efficiently in batch
+  - process_script: Convert complete script files to voiceovers with gaps
+  - generate_podcast: Create multi-voice podcasts with per-segment voice/speed control
+  - transcribe_speech: Audio-to-text using OpenAI Whisper
 
-🔧 MCP TOOLS IMPLEMENTED:
-
-1. TOOLS (6 available):
-   - generate_speech: Convert text to speech with voice and enhancement options
-   - list_voices: Get available voices organized by gender and accent
-   - batch_generate: Process multiple texts efficiently
-   - process_script: Convert complete video scripts to voiceovers
-   - generate_podcast: Create multi-voice conversational podcasts
-   - transcribe_speech: Convert audio to text using OpenAI Whisper
+Tools automatically use Pydantic models from mcp_server_main.py for request validation.
+FastMCP generates JSON schemas from Python type hints and docstrings.
 """
 
 import warnings
@@ -24,7 +21,10 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
-from mcp_server_main import (
+from aparsoft_tts.mcp_server.mcp_server_main import (
+    mcp,
+    config,
+    get_tts_engine,  # Lazy loader
     GenerateSpeechRequest,
     BatchGenerateRequest,
     ProcessScriptRequest,
@@ -36,63 +36,11 @@ from mcp_server_main import (
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")
 
-from aparsoft_tts.config import get_config
-from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES, TTSEngine
+from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES
 from aparsoft_tts.utils.exceptions import AparsoftTTSError
-from aparsoft_tts.utils.logging import bind_context, get_logger, setup_logging
+from aparsoft_tts.utils.logging import bind_context, get_logger
 
-# Initialize logging - force stderr for MCP compatibility
-import os
-import logging
-from aparsoft_tts.config import LoggingConfig
-
-# Suppress ALL non-structlog logging to prevent JSON parsing errors in MCP
-# This prevents library warnings and other non-JSON output from interfering
-logging.root.handlers.clear()
-logging.root.addHandler(logging.NullHandler())
-logging.root.setLevel(logging.CRITICAL + 1)
-
-# Suppress specific noisy loggers that might output to stderr
-for logger_name in [
-    "PIL",
-    "matplotlib",
-    "kokoro",
-    "transformers",
-    "torch",
-    "librosa",
-    "soundfile",
-    "numba",
-    "urllib3",
-    "huggingface_hub",
-]:
-    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
-    logging.getLogger(logger_name).propagate = False
-    logging.getLogger(logger_name).addHandler(logging.NullHandler())
-
-# Create MCP-compatible logging config
-mcp_logging_config = LoggingConfig(
-    level=os.getenv("LOG_LEVEL", "ERROR"),  # Only errors by default
-    format="json",
-    output="stderr",  # Always use stderr for MCP
-    include_timestamp=False,  # Reduce noise
-    include_caller=False,
-)
-setup_logging(mcp_logging_config)
 log = get_logger(__name__)
-
-# Get configuration
-config = get_config()
-
-# Initialize FastMCP server
-mcp = FastMCP(config.mcp.server_name, version=config.mcp.server_version)
-
-# Initialize TTS engine
-try:
-    tts_engine = TTSEngine()
-    log.info("mcp_server_initialized", server_name=config.mcp.server_name)
-except Exception as e:
-    log.error("mcp_server_initialization_failed", error=str(e))
-    raise
 
 
 def normalize_path(path_str: str) -> Path:
@@ -210,8 +158,11 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
             output_file=output_file_abs,
         )
 
+        # Get TTS engine (lazy loaded on first use)
+        engine = get_tts_engine()
+
         # Generate speech with absolute path
-        output_path = tts_engine.generate(
+        output_path = engine.generate(
             text=request.text,
             output_path=output_file_abs,
             voice=request.voice,
@@ -267,7 +218,9 @@ async def list_voices() -> str:
     try:
         log.info("mcp_list_voices_request")
 
-        voices = tts_engine.list_voices()
+        # Get TTS engine (lazy loaded on first use)
+        engine = get_tts_engine()
+        voices = engine.list_voices()
 
         result = """🎤 Available Voices
 
@@ -328,7 +281,10 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
             output_dir=output_dir_abs,
         )
 
-        paths = tts_engine.batch_generate(
+        # Get TTS engine (lazy loaded on first use)
+        engine = get_tts_engine()
+
+        paths = engine.batch_generate(
             texts=request.texts,
             output_dir=output_dir_abs,
             voice=request.voice,
@@ -402,7 +358,10 @@ async def process_script(request: ProcessScriptRequest) -> str:
             output_path=output_path_abs,
         )
 
-        output_path = tts_engine.process_script(
+        # Get TTS engine (lazy loaded on first use)
+        engine = get_tts_engine()
+
+        output_path = engine.process_script(
             script_path=script_path_abs,
             output_path=output_path_abs,
             gap_duration=request.gap_duration,
@@ -549,6 +508,9 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
         audio_segments = []
         segment_details = []
 
+        # Get TTS engine (lazy loaded on first use)
+        engine = get_tts_engine()
+
         for i, segment in enumerate(request.segments, 1):
             segment_name = segment.name or f"segment_{i}"
 
@@ -563,7 +525,7 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
 
             try:
                 # Generate audio for this segment
-                audio = tts_engine.generate(
+                audio = engine.generate(
                     text=segment.text,
                     voice=segment.voice,
                     speed=segment.speed,

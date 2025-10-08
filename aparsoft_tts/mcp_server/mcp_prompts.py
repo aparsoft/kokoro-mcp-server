@@ -1,20 +1,18 @@
 # aparsoft_tts/mcp_server/mcp_prompts.py
 
-"""
-Comprehensive MCP tools for Aparsoft TTS using FastMCP.
+"""MCP Prompts implementation for Aparsoft TTS.
 
-This MCP tools exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
-Cursor, and other MCP-compatible clients.
+Implements 4 guided workflow prompts using FastMCP's @mcp.prompt decorator:
+  - podcast_creator: Step-by-step podcast creation guide with MANDATORY AI disclosure
+  - voice_selector: Interactive voice selection based on content requirements
+  - script_optimizer: Best practices for TTS-optimized script writing
+  - troubleshoot_tts: Diagnostic guide for common quality issues
 
-🔧 MCP TOOLS IMPLEMENTED:
+Prompts provide reusable templates and workflows to guide users through complex tasks.
+Each prompt uses Pydantic models for parameter validation and generates contextual
+guidance based on user requirements.
 
-1. TOOLS (6 available):
-   - generate_speech: Convert text to speech with voice and enhancement options
-   - list_voices: Get available voices organized by gender and accent
-   - batch_generate: Process multiple texts efficiently
-   - process_script: Convert complete video scripts to voiceovers
-   - generate_podcast: Create multi-voice conversational podcasts
-   - transcribe_speech: Convert audio to text using OpenAI Whisper
+Utility functions are imported from mcp_utils.py for template generation.
 """
 
 import warnings
@@ -24,67 +22,16 @@ from pathlib import Path
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field, field_validator
 
-import mcp_utils
+from aparsoft_tts.mcp_server import mcp_utils
+from aparsoft_tts.mcp_server.mcp_server_main import mcp, config, get_tts_engine
 
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")
 
-from aparsoft_tts.config import get_config
-from aparsoft_tts.core.engine import TTSEngine
-from aparsoft_tts.utils.logging import bind_context, get_logger, setup_logging
+from aparsoft_tts.utils.logging import bind_context, get_logger
 
-# Initialize logging - force stderr for MCP compatibility
-import os
-import logging
-from aparsoft_tts.config import LoggingConfig
-
-# Suppress ALL non-structlog logging to prevent JSON parsing errors in MCP
-# This prevents library warnings and other non-JSON output from interfering
-logging.root.handlers.clear()
-logging.root.addHandler(logging.NullHandler())
-logging.root.setLevel(logging.CRITICAL + 1)
-
-# Suppress specific noisy loggers that might output to stderr
-for logger_name in [
-    "PIL",
-    "matplotlib",
-    "kokoro",
-    "transformers",
-    "torch",
-    "librosa",
-    "soundfile",
-    "numba",
-    "urllib3",
-    "huggingface_hub",
-]:
-    logging.getLogger(logger_name).setLevel(logging.CRITICAL + 1)
-    logging.getLogger(logger_name).propagate = False
-    logging.getLogger(logger_name).addHandler(logging.NullHandler())
-
-# Create MCP-compatible logging config
-mcp_logging_config = LoggingConfig(
-    level=os.getenv("LOG_LEVEL", "ERROR"),  # Only errors by default
-    format="json",
-    output="stderr",  # Always use stderr for MCP
-    include_timestamp=False,  # Reduce noise
-    include_caller=False,
-)
-setup_logging(mcp_logging_config)
 log = get_logger(__name__)
 
-# Get configuration
-config = get_config()
-
-# Initialize FastMCP server
-mcp = FastMCP(config.mcp.server_name, version=config.mcp.server_version)
-
-# Initialize TTS engine
-try:
-    tts_engine = TTSEngine()
-    log.info("mcp_server_initialized", server_name=config.mcp.server_name)
-except Exception as e:
-    log.error("mcp_server_initialization_failed", error=str(e))
-    raise
 
 # ==============================================================================
 # MCP PROMPTS - Guided workflows and best practice templates

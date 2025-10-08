@@ -1,93 +1,35 @@
 # aparsoft_tts/mcp_server/mcp_server_main.py
 
-"""Comprehensive MCP server for Aparsoft TTS using FastMCP.
+"""Main entry point for Aparsoft TTS MCP Server using FastMCP.
 
-This MCP server exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
-Cursor, and other MCP-compatible clients.
+This module provides the core server setup, Pydantic request models, and main()
+entry point. The actual MCP components are implemented in separate modules:
+- mcp_tools.py: Tool implementations (@mcp.tool decorators)
+- mcp_resources.py: Resource implementations (@mcp.resource decorators)
+- mcp_prompts.py: Prompt implementations (@mcp.prompt decorators)
+- mcp_utils.py: Shared utility functions
 
-🔧 MCP COMPONENTS IMPLEMENTED:
+The server exposes Aparsoft TTS functionality to MCP clients (Claude Desktop, Cursor, etc.)
+using FastMCP's stdio transport for standardized Model Context Protocol communication.
 
-1. TOOLS (6 available - mcp_tools.py):
-   - generate_speech: Convert text to speech with voice and enhancement options
-   - list_voices: Get available voices organized by gender and accent
-   - batch_generate: Process multiple texts efficiently
-   - process_script: Convert complete video scripts to voiceovers
-   - generate_podcast: Create multi-voice conversational podcasts
-   - transcribe_speech: Convert audio to text using OpenAI Whisper
+Setup:
+  Add to Claude Desktop config (~/.config/Claude/claude_desktop_config.json):
+  {
+    "mcpServers": {
+      "aparsoft-tts": {
+        "command": "/path/to/venv/bin/python",
+        "args": ["-m", "aparsoft_tts.mcp_server"]
+      }
+    }
+  }
 
-2. RESOURCES (5 available):
-   - tts://voice/info/{voice_id}: Detailed voice characteristics and recommendations
-   - tts://voices/comparison: Compare all voices by quality tier
-   - tts://presets/{preset_name}: Pre-configured settings for common use cases
-   - tts://presets/all: All available presets organized by category
+Components:
+  - 6 Tools: generate_speech, list_voices, batch_generate, process_script,
+             generate_podcast, transcribe_speech
+  - 4 Resources: voice info, voice comparison, presets
+  - 4 Prompts: podcast_creator, voice_selector, script_optimizer, troubleshoot_tts
 
-   Based on official Kokoro-82M voice data with quality grades (A-F scale) and
-   training hours (HH=10-100hr, H=1-10hr, MM=10-100min).
-
-3. PROMPTS (4 available):
-   - podcast_creator: Step-by-step podcast creation with MANDATORY AI disclosure
-   - voice_selector: Interactive voice selection based on content needs
-   - script_optimizer: TTS optimization techniques for natural output
-   - troubleshoot_tts: Comprehensive quality issue diagnostics
-
-4. TRANSPORTS (1 available):
-   - stdio: Standard input/output for Claude Desktop/Cursor integration
-
-🎙️ PODCAST GUIDELINES:
-For best practices on creating natural, ethical AI podcasts, see PODCAST_GUIDELINES.md
-Key requirements:
-- ALWAYS include AI disclosure in first segment (Apple/YouTube requirement)
-- Use conversational style with questions/reactions, NOT newsreader style
-- Vary speech speeds (1.0-1.2x) based on emotional context
-- Keep segments short (15-25 per episode) for dynamic feel
-
-The server uses FastMCP (https://github.com/jlowin/fastmcp) for standardized
-MCP protocol implementation with features like:
-- Automatic tool schema generation from Python type hints
-- Request validation with Pydantic models
-- Resource URIs for contextual data access
-- Prompt templates for guided workflows
-- Structured logging with correlation IDs
-- Comprehensive error handling
-- stdio transport for local MCP clients
-
-Setup Instructions:
-
-1. For Claude Desktop (~/.config/Claude/claude_desktop_config.json or
-   ~/Library/Application Support/Claude/claude_desktop_config.json on macOS):
-
-   {
-     "mcpServers": {
-       "aparsoft-tts": {
-         "command": "/absolute/path/to/venv/bin/python",
-         "args": ["-m", "aparsoft_tts.mcp_server"]
-       }
-     }
-   }
-
-2. For Cursor (~/.cursor/mcp.json):
-
-   {
-     "mcpServers": {
-       "aparsoft-tts": {
-         "command": "/absolute/path/to/venv/bin/python",
-         "args": ["-m", "aparsoft_tts.mcp_server"]
-       }
-     }
-   }
-
-3. Restart your MCP client to load the server
-
-Usage Examples:
-- "Generate speech for 'Welcome to my channel' using am_michael voice"
-- "List all available TTS voices"
-- "Process my script.txt file and create a voiceover"
-- "Batch generate audio for these three segments"
-
-Debugging:
-- Check logs in the client's log directory
-- Use MCP Inspector for interactive testing: npx @modelcontextprotocol/inspector
-- Enable debug logging with LOG_LEVEL=DEBUG environment variable
+See individual module files for detailed component documentation.
 """
 
 import asyncio
@@ -152,13 +94,24 @@ config = get_config()
 # Initialize FastMCP server
 mcp = FastMCP(config.mcp.server_name, version=config.mcp.server_version)
 
-# Initialize TTS engine
-try:
-    tts_engine = TTSEngine()
-    log.info("mcp_server_initialized", server_name=config.mcp.server_name)
-except Exception as e:
-    log.error("mcp_server_initialization_failed", error=str(e))
-    raise
+# TTS engine - LAZY INITIALIZATION
+# Don't load the model at import time! Load only when first needed.
+# This prevents blocking Claude Desktop/Cursor during MCP server startup.
+tts_engine: TTSEngine | None = None
+
+
+def get_tts_engine() -> TTSEngine:
+    """Get or initialize the TTS engine (lazy loading).
+
+    The engine is only initialized on first use, not at module import.
+    This ensures fast MCP server startup for Claude Desktop/Cursor.
+    """
+    global tts_engine
+    if tts_engine is None:
+        log.info("initializing_tts_engine", msg="First use - loading model...")
+        tts_engine = TTSEngine()
+        log.info("tts_engine_ready", msg="Model loaded successfully")
+    return tts_engine
 
 
 # Pydantic models for request validation
@@ -318,8 +271,8 @@ def main() -> None:
     log.info("starting_mcp_server", transport=config.mcp.transport)
 
     try:
-        # Run the server
-        mcp.run(transport="stdio")
+        # Run the server with banner display
+        mcp.run(transport="stdio", show_banner=True)
     except KeyboardInterrupt:
         log.info("mcp_server_stopped_by_user")
     except Exception as e:
