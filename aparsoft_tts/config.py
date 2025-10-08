@@ -200,6 +200,12 @@ class Config(BaseSettings):
     )
     debug: bool = Field(default=False, description="Enable debug mode")
 
+    # Engine Selection
+    engine: Literal["kokoro", "openvoice"] = Field(
+        default="kokoro",
+        description="TTS engine to use: 'kokoro' (fast, English) or 'openvoice' (cloning, multilingual)"
+    )
+
     # Sub-configurations
     tts: TTSConfig = Field(default_factory=TTSConfig)
     mcp: MCPConfig = Field(default_factory=MCPConfig)

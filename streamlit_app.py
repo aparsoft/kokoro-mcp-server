@@ -282,6 +282,66 @@ with st.sidebar:
 
     st.markdown("---")
 
+    # Presets Manager
+    st.markdown("### 💾 Presets")
+
+    # Load presets from file
+    presets_file = Path("config/presets.json")
+
+    def load_presets():
+        if presets_file.exists():
+            with open(presets_file, "r") as f:
+                return json.load(f)
+        return {}
+
+    def save_presets(presets):
+        presets_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(presets_file, "w") as f:
+            json.dump(presets, f, indent=2)
+
+    presets = load_presets()
+
+    if presets:
+        selected_preset = st.selectbox(
+            "Load Preset",
+            options=list(presets.keys()),
+            key="preset_select",
+        )
+
+        if st.button("📥 Load", width="stretch"):
+            preset = presets[selected_preset]
+            st.success(f"✅ Loaded preset: {selected_preset}")
+            st.info(f"Voice: {preset.get('voice', 'N/A')} | Speed: {preset.get('speed', 'N/A')}")
+    else:
+        st.info("📝 No presets saved yet")
+
+    # Save current engine config as preset
+    preset_name = st.text_input(
+        "Preset Name", placeholder="My Podcast Setup", key="new_preset_name"
+    )
+
+    if st.button("💾 Save Current Config", width="stretch"):
+        if preset_name:
+            if st.session_state.engine:
+                config = st.session_state.engine.config
+                presets[preset_name] = {
+                    "voice": config.voice,
+                    "speed": config.speed,
+                    "enhance_audio": config.enhance_audio,
+                    "sample_rate": config.sample_rate,
+                    "output_format": config.output_format,
+                    "trim_db": config.trim_db,
+                }
+                save_presets(presets)
+                st.success(f"✅ Saved preset: {preset_name}")
+                st.rerun()
+            else:
+                st.error("❌ Engine not initialized")
+        else:
+            st.error("❌ Please enter a preset name")
+
+    st.markdown("---")
+
     # Quick Actions
     st.markdown("### ⚡ Quick Actions")
 
@@ -325,8 +385,70 @@ st.markdown(
     "<p class='subtitle'>Enterprise Text-to-Speech Management Console</p>", unsafe_allow_html=True
 )
 
+# OpenVoice Studio Link
+st.markdown("---")
+col1, col2, col3 = st.columns([1, 2, 1])
+
+with col2:
+    st.markdown(
+        """
+        <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    padding: 1.5rem;
+                    border-radius: 12px;
+                    text-align: center;
+                    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);'>
+            <h3 style='color: white; margin: 0 0 0.5rem 0; font-size: 1.5rem;'>🎙️ OpenVoice V2 Studio</h3>
+            <p style='color: rgba(255,255,255,0.9); margin: 0 0 1rem 0;'>
+                Zero-shot voice cloning with cross-lingual generation
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Check if OpenVoice is available
+    try:
+        from aparsoft_tts.openvoice_engine import OpenVoiceEngine
+
+        openvoice_available = True
+    except:
+        openvoice_available = False
+
+    if openvoice_available:
+        # Navigate to OpenVoice Studio page
+        if st.button(
+            "🚀 Launch OpenVoice Studio",
+            type="primary",
+            use_container_width=True,
+            help="Clone ANY voice from 3-5s audio | 6 languages | Cross-lingual generation",
+        ):
+            st.info(
+                """ 
+            👉 **OpenVoice Studio is now available as a separate page!**
+            
+            Navigate using the sidebar or visit the page directly:
+            - Look for **"🎙️ OpenVoice Studio"** in the sidebar navigation
+            - Or use the Streamlit navigation menu
+            """
+            )
+    else:
+        st.warning(
+            """
+        ⚠️ **OpenVoice V2 not installed**
+        
+        To enable voice cloning:
+        1. `pip install -e ".[openvoice]"`
+        2. `pip install git+https://github.com/myshell-ai/MeloTTS.git`
+        3. `python -m aparsoft_tts.download_openvoice_checkpoints`
+        
+        See README_OPENVOICE.md for details.
+        """
+        )
+
+st.markdown("---")
+
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
     [
         "🎯 Single",
         "📦 Batch",
@@ -334,6 +456,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
         "🎙️ Podcast",
         "🎤 Transcribe",
         "🔍 Voices",
+        "📁 Files",
         "⚙️ Config",
         "📊 Analytics",
     ]
@@ -381,11 +504,62 @@ with tab1:
             help="Apply normalization, noise reduction, and fades",
         )
 
+        output_format = st.selectbox(
+            "Output Format",
+            options=["wav", "flac", "mp3"],
+            index=0,
+            help="WAV: Uncompressed | FLAC: Lossless | MP3: Compressed",
+        )
+
         output_name = st.text_input(
             "Output filename",
-            value=f"output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav",
+            value=f"output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{output_format}",
             help="Name for the output file",
         )
+
+    # Token Analysis & Quality Check
+    if text_input:
+        with st.expander("📊 Token Analysis & Quality Check"):
+            try:
+                engine = get_engine()
+                if engine:
+                    token_count = engine._count_tokens(text_input)
+                    chunks = engine._chunk_text_smart(text_input)
+
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Tokens", token_count)
+                    with col2:
+                        st.metric("Chunks", len(chunks))
+                    with col3:
+                        if token_count <= 250:
+                            st.metric("Status", "✅ Optimal")
+                        else:
+                            st.metric("Status", "⚠️ Will Chunk")
+
+                    # Quality warnings
+                    warnings = []
+                    if token_count > 400:
+                        warnings.append("⚠️ Text is long - will be chunked (may affect pacing)")
+                    if speed > 1.5:
+                        warnings.append("⚠️ High speed may reduce quality")
+                    if len(text_input) < 10:
+                        warnings.append("⚠️ Text is very short")
+
+                    if warnings:
+                        st.warning("Quality Warnings:")
+                        for warning in warnings:
+                            st.write(warning)
+
+                    # Show chunk breakdown
+                    if len(chunks) > 1:
+                        st.markdown("**Chunk Breakdown:**")
+                        for i, chunk in enumerate(chunks, 1):
+                            chunk_tokens = engine._count_tokens(chunk)
+                            with st.container():
+                                st.text(f"Chunk {i} ({chunk_tokens} tokens): {chunk[:80]}...")
+            except:
+                pass
 
     if st.button("🎤 Generate Speech", type="primary", width="stretch"):
         if not text_input:
@@ -401,6 +575,10 @@ with tab1:
 
                     with st.spinner("🔊 Generating speech..."):
                         start_time = time.time()
+
+                        # Generate with selected format
+                        temp_config = engine.config
+                        temp_config.output_format = output_format
 
                         result_path = engine.generate(
                             text=text_input,
@@ -663,11 +841,49 @@ with tab3:
             help="Pause duration between script paragraphs",
         )
 
+        script_output_format = st.selectbox(
+            "Output Format",
+            options=["wav", "flac", "mp3"],
+            index=0,
+            help="WAV: Uncompressed | FLAC: Lossless | MP3: Compressed",
+            key="script_format",
+        )
+
         script_output_name = st.text_input(
             "Output filename",
-            value=f"voiceover_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav",
+            value=f"voiceover_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{script_output_format}",
             key="script_output",
         )
+
+    # Token Analysis for Script
+    if script_text:
+        with st.expander("📊 Script Token Analysis"):
+            try:
+                engine = get_engine()
+                if engine:
+                    token_count = engine._count_tokens(script_text)
+                    chunks = engine._chunk_text_smart(script_text)
+
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Total Tokens", token_count)
+                    with col2:
+                        st.metric("Chunks", len(chunks))
+                    with col3:
+                        avg_tokens = token_count // len(chunks) if chunks else 0
+                        st.metric("Avg Tokens/Chunk", avg_tokens)
+                    with col4:
+                        est_duration = token_count * 0.06  # Rough estimate: ~0.06s per token
+                        st.metric("Est. Duration", f"{est_duration:.0f}s")
+
+                    # Show chunk breakdown
+                    if len(chunks) > 1:
+                        with st.expander(f"View {len(chunks)} chunks"):
+                            for i, chunk in enumerate(chunks, 1):
+                                chunk_tokens = engine._count_tokens(chunk)
+                                st.text(f"Chunk {i} ({chunk_tokens}t): {chunk[:80]}...")
+            except:
+                pass
 
     if st.button("🎬 Process Script", type="primary", width="stretch"):
         if not script_text:
@@ -691,6 +907,10 @@ with tab3:
 
                     with st.spinner("🔊 Processing script..."):
                         start_time = time.time()
+
+                        # Set output format
+                        temp_config = engine.config
+                        temp_config.output_format = script_output_format
 
                         result_path = engine.process_script(
                             script_path=str(script_path),
@@ -895,32 +1115,108 @@ with tab4:
             add_podcast_segment()
             st.rerun()
 
-        if st.button("📋 Load Template", use_container_width=True):
-            # Load a sample podcast template
-            st.session_state.podcast_segments = [
+        # Podcast Templates
+        st.markdown("### 🎨 Templates")
+
+        templates = {
+            "Interview (2 Hosts)": [
                 {
                     "id": 1,
-                    "name": "Intro (Host)",
-                    "text": "Welcome to our podcast. Today we have a special guest.",
+                    "name": "AI Disclosure",
+                    "text": "This podcast is created using Claude by Anthropic for content creation and Aparsoft TTS for voice synthesis.",
                     "voice": "am_michael",
                     "speed": 1.0,
                 },
                 {
                     "id": 2,
+                    "name": "Host Intro",
+                    "text": "Welcome to our podcast. Today we have a special guest.",
+                    "voice": "am_michael",
+                    "speed": 1.0,
+                },
+                {
+                    "id": 3,
                     "name": "Guest Response",
                     "text": "Thanks for having me. I'm excited to be here.",
                     "voice": "af_bella",
                     "speed": 0.95,
                 },
                 {
-                    "id": 3,
-                    "name": "Outro (Host)",
-                    "text": "Thank you for joining us. See you next time!",
+                    "id": 4,
+                    "name": "Host Question",
+                    "text": "So tell us, what have you been working on lately?",
                     "voice": "am_michael",
+                    "speed": 1.05,
+                },
+            ],
+            "News Report": [
+                {
+                    "id": 1,
+                    "name": "AI Disclosure",
+                    "text": "This content is generated using AI technology.",
+                    "voice": "af_sarah",
                     "speed": 1.0,
                 },
-            ]
-            st.session_state.podcast_segment_counter = 3
+                {
+                    "id": 2,
+                    "name": "Breaking News",
+                    "text": "Breaking news today from the world of technology.",
+                    "voice": "af_sarah",
+                    "speed": 1.1,
+                },
+                {
+                    "id": 3,
+                    "name": "Details",
+                    "text": "Here are the key details you need to know.",
+                    "voice": "af_sarah",
+                    "speed": 1.0,
+                },
+            ],
+            "Storytelling": [
+                {
+                    "id": 1,
+                    "name": "Opening",
+                    "text": "Once upon a time, in a land far away...",
+                    "voice": "bm_george",
+                    "speed": 0.9,
+                },
+                {
+                    "id": 2,
+                    "name": "Chapter 1",
+                    "text": "The hero began their journey at dawn.",
+                    "voice": "bm_george",
+                    "speed": 0.95,
+                },
+            ],
+            "Tutorial": [
+                {
+                    "id": 1,
+                    "name": "Intro",
+                    "text": "Hello everyone! Today I'll show you step by step.",
+                    "voice": "af_nicole",
+                    "speed": 1.0,
+                },
+                {
+                    "id": 2,
+                    "name": "Step 1",
+                    "text": "First, let's start with the basics.",
+                    "voice": "af_nicole",
+                    "speed": 0.95,
+                },
+            ],
+        }
+
+        selected_template = st.selectbox(
+            "Choose Template",
+            options=list(templates.keys()),
+            key="podcast_template_select",
+        )
+
+        if st.button("📋 Load Template", use_container_width=True):
+            # Load selected template
+            st.session_state.podcast_segments = templates[selected_template]
+            st.session_state.podcast_segment_counter = len(templates[selected_template])
+            st.success(f"✅ Loaded template: {selected_template}")
             st.rerun()
 
         if st.button("🗑️ Clear All", use_container_width=True):
@@ -945,13 +1241,17 @@ with tab4:
 
     # Create two columns for buttons
     btn_col1, btn_col2 = st.columns(2)
-    
+
     with btn_col1:
-        add_segment_bottom = st.button("➕ Add Segment", use_container_width=True, key="add_segment_bottom")
-    
+        add_segment_bottom = st.button(
+            "➕ Add Segment", use_container_width=True, key="add_segment_bottom"
+        )
+
     with btn_col2:
-        generate_podcast = st.button("🎧 Generate Podcast", type="primary", use_container_width=True)
-    
+        generate_podcast = st.button(
+            "🎧 Generate Podcast", type="primary", use_container_width=True
+        )
+
     # Handle add segment button click
     if add_segment_bottom:
         add_podcast_segment()
@@ -1325,13 +1625,107 @@ with tab6:
     st.markdown("## 🔍 Voice Explorer")
     st.markdown("Compare and explore all available voices")
 
-    # Voice comparison
-    st.markdown("### Voice Comparison")
+    # Batch Voice Comparison Tool
+    st.markdown("### 🎭 Batch Voice Comparison")
+    st.markdown("Generate the same text with ALL voices for easy comparison")
+
+    batch_comparison_text = st.text_area(
+        "Enter text to compare across all voices",
+        value="Welcome to our podcast. This is a demonstration of high-quality text-to-speech.",
+        height=80,
+        key="batch_comparison_text",
+    )
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        voice_filter = st.multiselect(
+            "Select voices to compare (leave empty for all)",
+            options=ALL_VOICES,
+            default=[],
+            help="Select specific voices or leave empty to generate all",
+        )
+
+    with col2:
+        comparison_speed = st.slider(
+            "Speed",
+            min_value=0.5,
+            max_value=2.0,
+            value=1.0,
+            step=0.1,
+            key="comparison_speed",
+        )
+
+    if st.button("🎤 Generate All Voice Comparisons", type="primary", use_container_width=True):
+        if not batch_comparison_text:
+            st.error("❌ Please enter text for comparison")
+        else:
+            try:
+                engine = get_engine()
+
+                if engine:
+                    output_dir = Path("outputs/voice_comparison")
+                    output_dir.mkdir(parents=True, exist_ok=True)
+
+                    voices_to_compare = voice_filter if voice_filter else ALL_VOICES
+
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+
+                    generated_voices = []
+
+                    for i, voice in enumerate(voices_to_compare):
+                        status_text.text(
+                            f"🔊 Generating {voice} ({i+1}/{len(voices_to_compare)})..."
+                        )
+
+                        output_path = output_dir / f"{voice}_comparison.wav"
+
+                        engine.generate(
+                            text=batch_comparison_text,
+                            output_path=str(output_path),
+                            voice=voice,
+                            speed=comparison_speed,
+                            enhance=True,
+                        )
+
+                        generated_voices.append({"voice": voice, "path": output_path})
+                        progress_bar.progress((i + 1) / len(voices_to_compare))
+
+                    progress_bar.empty()
+                    status_text.empty()
+
+                    st.success(f"✅ Generated {len(generated_voices)} voice samples!")
+
+                    # Display all voices with audio players
+                    st.markdown("### 🎵 Voice Samples")
+
+                    # Organize by gender
+                    st.markdown("#### 👨 Male Voices")
+                    for item in generated_voices:
+                        if item["voice"] in MALE_VOICES:
+                            with st.expander(f"🎤 {item['voice']}", expanded=True):
+                                st.audio(str(item["path"]), format="audio/wav")
+
+                    st.markdown("#### 👩 Female Voices")
+                    for item in generated_voices:
+                        if item["voice"] in FEMALE_VOICES:
+                            with st.expander(f"🎤 {item['voice']}", expanded=True):
+                                st.audio(str(item["path"]), format="audio/wav")
+
+            except Exception as e:
+                show_exception(e, "Batch voice comparison failed")
+
+    st.markdown("---")
+
+    # Individual Voice Testing
+    st.markdown("### Voice Testing")
 
     comparison_text = st.text_area(
-        "Enter text for voice comparison",
+        "Enter text for individual voice testing",
         value="Welcome to Aparsoft TTS. This is a demonstration of kokora-powered open-source text-to-speech capabilities.",
         height=100,
+        key="individual_comparison_text",
     )
 
     col1, col2 = st.columns(2)
@@ -1419,9 +1813,140 @@ with tab6:
                         show_exception(e, f"Voice sample generation failed for {voice}")
 
 # ==========================================
-# TAB 7: CONFIGURATION
+# TAB 7: AUDIO FILE MANAGER
 # ==========================================
 with tab7:
+    st.markdown("## 📁 Audio File Manager")
+    st.markdown("Browse, play, and manage your generated audio files")
+
+    # List all output directories
+    output_dirs = {
+        "Single Generations": "outputs/single",
+        "Batch Generations": "outputs/batch",
+        "Scripts": "outputs/scripts",
+        "Podcasts": "outputs/podcasts",
+        "Voice Comparisons": "outputs/voice_comparison",
+        "Voice Samples": "outputs/voice_samples",
+    }
+
+    # Statistics
+    total_files = 0
+    total_size = 0
+
+    for dir_path in output_dirs.values():
+        dir_path = Path(dir_path)
+        if dir_path.exists():
+            files = list(dir_path.glob("*.*"))
+            total_files += len(files)
+            total_size += sum(f.stat().st_size for f in files)
+
+    # Display stats
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Files", total_files)
+    with col2:
+        st.metric("Total Size", f"{total_size / (1024 * 1024):.1f} MB")
+    with col3:
+        st.metric("Directories", len([d for d in output_dirs.values() if Path(d).exists()]))
+
+    st.markdown("---")
+
+    # Bulk actions
+    st.markdown("### 🧹 Bulk Actions")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("📥 Export All as ZIP", use_container_width=True):
+            st.info("🚧 ZIP export feature coming soon!")
+
+    with col2:
+        if st.button("🗑️ Clear All Files", use_container_width=True, type="secondary"):
+            if st.session_state.get("confirm_delete_all"):
+                deleted_count = 0
+                for dir_path in output_dirs.values():
+                    dir_path = Path(dir_path)
+                    if dir_path.exists():
+                        for file in dir_path.glob("*.*"):
+                            file.unlink()
+                            deleted_count += 1
+                st.success(f"✅ Deleted {deleted_count} files!")
+                st.session_state["confirm_delete_all"] = False
+                st.rerun()
+            else:
+                st.session_state["confirm_delete_all"] = True
+                st.warning("⚠️ Click again to confirm deletion of ALL files!")
+
+    with col3:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.rerun()
+
+    st.markdown("---")
+
+    # File browser by directory
+    st.markdown("### 📂 File Browser")
+
+    for category, dir_path in output_dirs.items():
+        dir_path = Path(dir_path)
+
+        if dir_path.exists():
+            files = sorted(
+                list(dir_path.glob("*.*")), key=lambda x: x.stat().st_mtime, reverse=True
+            )
+
+            if files:
+                with st.expander(f"📁 {category} ({len(files)} files)", expanded=False):
+                    for file in files:
+                        file_stat = file.stat()
+                        size_mb = file_stat.st_size / (1024 * 1024)
+                        modified = datetime.fromtimestamp(file_stat.st_mtime).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
+
+                        col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
+
+                        with col1:
+                            st.text(file.name)
+
+                        with col2:
+                            st.text(f"{size_mb:.2f} MB")
+
+                        with col3:
+                            st.text(modified)
+
+                        with col4:
+                            # Play button
+                            if file.suffix.lower() in [".wav", ".mp3", ".flac"]:
+                                st.audio(str(file), format=f"audio/{file.suffix[1:]}")
+
+                        with col5:
+                            # Delete button
+                            if st.button("🗑️", key=f"delete_{file.stem}_{file.parent.name}"):
+                                file.unlink()
+                                st.rerun()
+
+                        # Download button for each file
+                        with open(file, "rb") as f:
+                            st.download_button(
+                                label=f"📥 Download {file.name}",
+                                data=f,
+                                file_name=file.name,
+                                mime=f"audio/{file.suffix[1:]}",
+                                key=f"download_{file.stem}_{file.parent.name}",
+                            )
+
+                        st.markdown("---")
+            else:
+                with st.expander(f"📁 {category} (0 files)"):
+                    st.info("📦 No files in this directory")
+        else:
+            with st.expander(f"📁 {category} (directory not created yet)"):
+                st.info("📍 Directory will be created when you generate audio")
+
+# ==========================================
+# TAB 8: CONFIGURATION
+# ==========================================
+with tab8:
     st.markdown("## ⚙️ Configuration")
     st.markdown("Manage TTS engine and system settings")
 
@@ -1469,6 +1994,7 @@ with tab7:
                 value=30.0,
                 step=5.0,
                 key="config_trim_db",
+                help="Higher = less aggressive trimming, better preserves soft endings",
             )
 
         config_fade = st.slider(
@@ -1489,9 +2015,41 @@ with tab7:
             key="config_chunk_gap",
         )
 
+    # Advanced Audio Enhancement
+    st.markdown("---")
+    st.markdown("### 🎹 Advanced Audio Enhancement")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        config_normalize = st.checkbox(
+            "Normalize Audio",
+            value=True,
+            key="config_normalize",
+            help="Normalize volume levels",
+        )
+
+        config_noise_reduction = st.checkbox(
+            "Noise Reduction",
+            value=True,
+            key="config_noise_reduction",
+            help="Apply spectral noise reduction",
+        )
+
+    with col2:
+        config_crossfade = st.slider(
+            "Crossfade Duration (seconds)",
+            min_value=0.0,
+            max_value=0.5,
+            value=0.1,
+            step=0.05,
+            key="config_crossfade",
+            help="Smooth transitions between segments",
+        )
+
     if st.button("💾 Save Configuration", type="primary", width="stretch"):
         try:
-            # Create custom config
+            # Create custom config with all settings
             custom_config = TTSConfig(
                 voice=config_voice,
                 speed=config_speed,
@@ -1502,6 +2060,7 @@ with tab7:
                 trim_db=config_trim_db if config_trim else 30.0,
                 fade_duration=config_fade,
                 chunk_gap_duration=config_chunk_gap,
+                podcast_crossfade_duration=config_crossfade,
             )
 
             # Save to file
@@ -1555,9 +2114,9 @@ with tab7:
         st.dataframe(config_df, width="stretch", hide_index=True)
 
 # ==========================================
-# TAB 8: ANALYTICS
+# TAB 9: ANALYTICS
 # ==========================================
-with tab8:
+with tab9:
     st.markdown("## 📊 Analytics & History")
     st.markdown("Track and analyze your TTS generation activity")
 

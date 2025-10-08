@@ -159,3 +159,13 @@ local_folder/*
 output/
 outputs/
 output/*
+*/openai_*
+deploy_*
+checkpoints_v2
+checkpoints_v2/*
+MeloTTS
+MeloTTS/*
+**/openvoice_*
+**/OPENVOICE_*
+pages
+pages/*

@@ -5,6 +5,7 @@ import traceback
 import logging
 from functools import wraps
 from typing import Callable, Any
+from datetime import datetime
 
 # Setup logging
 logging.basicConfig(
@@ -130,26 +131,26 @@ def safe_json_serialize(obj: Any) -> dict:
 
 def extract_voices_from_history(df) -> list:
     """Extract all voices used from history dataframe.
-    
+
     Handles both single voice entries and multi-voice podcast entries.
-    
+
     Args:
         df: Pandas DataFrame with history entries
-        
+
     Returns:
         List of all voices used
-        
+
     Usage:
         voices = extract_voices_from_history(history_df)
     """
     import pandas as pd
-    
+
     voice_data = []
-    
+
     # Check if columns exist
     has_voice = "voice" in df.columns
     has_voices_used = "voices_used" in df.columns
-    
+
     for idx, row in df.iterrows():
         # Handle single voice column
         if has_voice:
@@ -161,16 +162,16 @@ def extract_voices_from_history(df) -> list:
                     continue  # Skip to next row
             except (KeyError, TypeError, AttributeError):
                 pass
-        
+
         # Handle voices_used column (podcast entries)
         if has_voices_used:
             try:
                 voices_val = row["voices_used"]
-                
+
                 # Handle Series/array edge case
                 if isinstance(voices_val, pd.Series):
                     voices_val = voices_val.iloc[0] if len(voices_val) > 0 else None
-                
+
                 # Check if value exists and is not null
                 if voices_val is not None:
                     if isinstance(voices_val, list):
@@ -179,7 +180,7 @@ def extract_voices_from_history(df) -> list:
                         voice_data.append(str(voices_val))
             except (KeyError, TypeError, AttributeError):
                 pass
-    
+
     return voice_data
 
 
@@ -200,7 +201,7 @@ def normalize_voice_column(df):
     import pandas as pd
 
     display_df = df.copy()
-    
+
     has_voice = "voice" in display_df.columns
     has_voices_used = "voices_used" in display_df.columns
 
@@ -211,13 +212,13 @@ def normalize_voice_column(df):
             try:
                 voice_val = row["voice"]
                 voices_used_val = row["voices_used"]
-                
+
                 # Handle Series/array edge cases
                 if isinstance(voice_val, pd.Series):
                     voice_val = voice_val.iloc[0] if len(voice_val) > 0 else None
                 if isinstance(voices_used_val, pd.Series):
                     voices_used_val = voices_used_val.iloc[0] if len(voices_used_val) > 0 else None
-                
+
                 # Safer null checks
                 if voice_val is not None and str(voice_val).strip():
                     return str(voice_val)
@@ -230,10 +231,10 @@ def normalize_voice_column(df):
                     return ""
             except (KeyError, TypeError, AttributeError):
                 return ""
-        
+
         display_df["voice"] = display_df.apply(merge_voices, axis=1)
         display_df = display_df.drop(columns=["voices_used"])
-        
+
     elif has_voices_used:
         # Only voices_used exists - convert to voice
         def convert_voices_used(val):
@@ -241,7 +242,7 @@ def normalize_voice_column(df):
                 # Handle Series/array edge case
                 if isinstance(val, pd.Series):
                     val = val.iloc[0] if len(val) > 0 else None
-                
+
                 # Safer null check
                 if val is not None:
                     if isinstance(val, list):
@@ -251,7 +252,7 @@ def normalize_voice_column(df):
                 return ""
             except (TypeError, AttributeError):
                 return ""
-        
+
         display_df["voice"] = display_df["voices_used"].apply(convert_voices_used)
         display_df = display_df.drop(columns=["voices_used"])
 
