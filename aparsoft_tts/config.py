@@ -1,3 +1,5 @@
+# aparsoft_tts/config.py
+
 """Configuration management for Aparsoft TTS system."""
 
 from pathlib import Path

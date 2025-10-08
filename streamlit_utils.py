@@ -1,3 +1,5 @@
+# streamlit_utils.py
+
 """Streamlit utility functions for error handling and debugging"""
 
 import streamlit as st

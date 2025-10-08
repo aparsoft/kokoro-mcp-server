@@ -1,3 +1,5 @@
+# aparsoft_tts/core/engine_factory.py
+
 """Factory pattern for TTS engine selection.
 
 This module provides a unified interface to select and initialize

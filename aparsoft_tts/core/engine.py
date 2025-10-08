@@ -1,3 +1,5 @@
+# aparsoft_tts/core/engine.py
+
 """Comprehensive TTS engine using Kokoro TTS with intelligent chunking."""
 
 import re

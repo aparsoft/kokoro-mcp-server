@@ -1,3 +1,5 @@
+# aparsoft_tts/cli.py
+
 """Command-line interface for Aparsoft TTS."""
 
 from pathlib import Path

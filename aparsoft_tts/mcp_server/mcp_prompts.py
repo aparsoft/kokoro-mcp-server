@@ -1,3 +1,5 @@
+# aparsoft_tts/mcp_server/mcp_prompts.py
+
 """
 Comprehensive MCP tools for Aparsoft TTS using FastMCP.
 

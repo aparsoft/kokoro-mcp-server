@@ -1,3 +1,5 @@
+# aparsoft_tts/__init__.py
+
 """Aparsoft TTS - Comprehensive Text-to-Speech with Dual Engines.
 
 This package provides a comprehensive TTS solution with TWO powerful engines:

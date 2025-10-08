@@ -1,3 +1,5 @@
+# aparsoft_tts/utils/exceptions.py
+
 """Custom exceptions for Aparsoft TTS system."""
 
 

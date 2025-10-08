@@ -1,3 +1,5 @@
+# aparsoft_tts/mcp_server/mcp_server_main.py
+
 """Comprehensive MCP server for Aparsoft TTS using FastMCP.
 
 This MCP server exposes Aparsoft TTS functionality to AI assistants like Claude Desktop,
