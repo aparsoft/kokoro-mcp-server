@@ -169,5 +169,10 @@ MeloTTS
 MeloTTS/*
 **/openvoice_*
 **/OPENVOICE_*
+**/flux_*
+**/FLUX*
+**/*_flux*
 pages
 pages/*
+*test_*
+scripts

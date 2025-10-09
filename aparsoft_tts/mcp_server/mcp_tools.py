@@ -36,7 +36,7 @@ from aparsoft_tts.mcp_server.mcp_server_main import (
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")
 
-from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES
+from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES, HINDI_MALE_VOICES, HINDI_FEMALE_VOICES
 from aparsoft_tts.utils.exceptions import AparsoftTTSError
 from aparsoft_tts.utils.logging import bind_context, get_logger
 
@@ -224,19 +224,29 @@ async def list_voices() -> str:
 
         result = """🎤 Available Voices
 
-**Male Voices (Professional, Clear):**
+**English Male Voices (Professional, Clear):**
 """
         for voice in voices["male"]:
             accent = "American" if voice.startswith("am_") else "British"
             result += f"  • {voice} - {accent} male\n"
 
-        result += "\n**Female Voices (Warm, Expressive):**\n"
+        result += "\n**English Female Voices (Warm, Expressive):**\n"
         for voice in voices["female"]:
             accent = "American" if voice.startswith("af_") else "British"
             result += f"  • {voice} - {accent} female\n"
 
-        result += f"\n**Recommended for YouTube:** am_michael (professional, clear)\n"
-        result += f"**Total Voices:** {len(MALE_VOICES) + len(FEMALE_VOICES)}\n"
+        result += "\n**🇮🇳 Hindi Male Voices:**\n"
+        for voice in voices["hindi_male"]:
+            result += f"  • {voice} - Hindi male\n"
+
+        result += "\n**🇮🇳 Hindi Female Voices:**\n"
+        for voice in voices["hindi_female"]:
+            result += f"  • {voice} - Hindi female\n"
+
+        result += f"\n**Recommended for YouTube (English):** am_michael (professional, clear)\n"
+        result += f"**Recommended for Hindi:** hf_alpha (female), hm_omega (male)\n"
+        result += f"**Total Voices:** {len(MALE_VOICES) + len(FEMALE_VOICES) + len(HINDI_MALE_VOICES) + len(HINDI_FEMALE_VOICES)}\n"
+        result += f"\n**Note:** Hindi voices require espeak-ng with Hindi support installed.\n"
 
         log.info("mcp_list_voices_success")
         return result

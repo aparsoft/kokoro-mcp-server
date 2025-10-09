@@ -16,7 +16,13 @@ from pathlib import Path
 from typing import Any
 
 from aparsoft_tts.config import get_config
-from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES
+from aparsoft_tts.core.engine import (
+    ALL_VOICES,
+    FEMALE_VOICES,
+    MALE_VOICES,
+    HINDI_MALE_VOICES,
+    HINDI_FEMALE_VOICES,
+)
 from aparsoft_tts.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -387,6 +393,147 @@ VOICE_CHARACTERISTICS = {
         ],
         "voice_sha256": "cdd4c370",
     },
+    # Hindi Female Voices
+    "hf_alpha": {
+        "name": "Alpha",
+        "gender": "Female",
+        "accent": "Hindi",
+        "quality_grade": "B",
+        "training_hours": "MM (10-100 minutes)",
+        "overall_grade": "C",
+        "characteristics": [
+            "Clear Hindi pronunciation",
+            "Natural Devanagari articulation",
+            "Suitable for general content",
+            "Good training quality",
+        ],
+        "best_for": [
+            "Hindi educational content",
+            "Hindi YouTube videos",
+            "Hindi audiobooks",
+            "Hindi podcasts",
+            "General Hindi narration",
+        ],
+        "avoid_for": [
+            "English content",
+            "Mixed language without proper segmentation",
+        ],
+        "speed_recommendations": {
+            "tutorial": {"speed": 0.95, "reason": "Clear Hindi instruction"},
+            "podcast": {"speed": 1.0, "reason": "Natural Hindi conversation"},
+            "audiobook": {"speed": 1.0, "reason": "Comfortable Hindi reading"},
+        },
+        "sample_texts": [
+            "नमस्ते, आज हम एक महत्वपूर्ण विषय पर चर्चा करेंगे।",
+            "यह ट्यूटोरियल आपको सब कुछ सिखाएगा।",
+            "हमारे चैनल में आपका स्वागत है।",
+        ],
+        "voice_sha256": "06906fe0",
+        "special_notes": "🇮🇳 Hindi voice - requires espeak-ng with Hindi support",
+    },
+    "hf_beta": {
+        "name": "Beta",
+        "gender": "Female",
+        "accent": "Hindi",
+        "quality_grade": "B",
+        "training_hours": "MM (10-100 minutes)",
+        "overall_grade": "C",
+        "characteristics": [
+            "Alternative Hindi female voice",
+            "Clear Devanagari pronunciation",
+            "Expressive delivery",
+            "Good for varied content",
+        ],
+        "best_for": [
+            "Hindi storytelling",
+            "Hindi vlogs",
+            "Hindi training content",
+            "Hindi announcements",
+        ],
+        "avoid_for": [
+            "English content",
+            "Highly technical jargon",
+        ],
+        "speed_recommendations": {
+            "storytelling": {"speed": 0.95, "reason": "Engaging Hindi narrative"},
+            "casual": {"speed": 1.05, "reason": "Energetic Hindi delivery"},
+        },
+        "sample_texts": [
+            "आज की कहानी बहुत रोचक है।",
+            "यह वीडियो आपको बहुत पसंद आएगा।",
+        ],
+        "voice_sha256": "63c0a1a6",
+        "special_notes": "🇮🇳 Hindi voice - alternative to hf_alpha",
+    },
+    # Hindi Male Voices
+    "hm_omega": {
+        "name": "Omega",
+        "gender": "Male",
+        "accent": "Hindi",
+        "quality_grade": "B",
+        "training_hours": "MM (10-100 minutes)",
+        "overall_grade": "C",
+        "characteristics": [
+            "Professional Hindi male voice",
+            "Authoritative tone",
+            "Clear articulation",
+            "Good for formal content",
+        ],
+        "best_for": [
+            "Hindi tutorials",
+            "Hindi news-style content",
+            "Hindi professional presentations",
+            "Hindi documentary narration",
+        ],
+        "avoid_for": [
+            "English content",
+            "Very casual informal content",
+        ],
+        "speed_recommendations": {
+            "tutorial": {"speed": 0.95, "reason": "Clear Hindi teaching"},
+            "professional": {"speed": 1.0, "reason": "Formal Hindi delivery"},
+        },
+        "sample_texts": [
+            "आज हम तकनीकी विषयों पर चर्चा करेंगे।",
+            "यह महत्वपूर्ण जानकारी है।",
+        ],
+        "voice_sha256": "b55f02a8",
+        "special_notes": "🇮🇳 Hindi male voice - professional tone",
+    },
+    "hm_psi": {
+        "name": "Psi",
+        "gender": "Male",
+        "accent": "Hindi",
+        "quality_grade": "B",
+        "training_hours": "MM (10-100 minutes)",
+        "overall_grade": "C",
+        "characteristics": [
+            "Alternative Hindi male voice",
+            "Natural delivery",
+            "Good for conversational content",
+            "Balanced tone",
+        ],
+        "best_for": [
+            "Hindi podcasts",
+            "Hindi casual content",
+            "Hindi conversational videos",
+            "Hindi interviews",
+        ],
+        "avoid_for": [
+            "English content",
+            "Highly technical documentation",
+        ],
+        "speed_recommendations": {
+            "podcast": {"speed": 1.0, "reason": "Natural Hindi conversation"},
+            "casual": {"speed": 1.05, "reason": "Friendly Hindi tone"},
+        },
+        "sample_texts": [
+            "आज हम एक दिलचस्प विषय पर बात करेंगे।",
+            "मेरा नाम राज है और आपका स्वागत है।",
+        ],
+        "voice_sha256": "2f0f055c",
+        "special_notes": "🇮🇳 Hindi male voice - conversational style",
+    },
     # Special Voice
     "af": {
         "name": "Bella-Sarah Mix",
@@ -552,6 +699,63 @@ CONFIGURATION_PRESETS = {
             "Perfect for historical/nature documentaries",
         ],
     },
+    "hindi_tutorial": {
+        "name": "Hindi Tutorial",
+        "description": "Educational content in Hindi with clear delivery",
+        "recommended_voices": ["hm_omega", "hf_alpha"],
+        "settings": {
+            "voice": "hm_omega",
+            "speed": 0.95,
+            "enhance": True,
+            "gap_duration": 0.5,
+            "trim_silence": True,
+        },
+        "tips": [
+            "Use slower speed (0.95) for clarity in Hindi",
+            "hm_omega for professional tone, hf_alpha for approachable style",
+            "Ensure text is in Devanagari script (not romanized)",
+            "Test pronunciation with short samples first",
+            "Requires espeak-ng with Hindi support",
+        ],
+    },
+    "hindi_podcast": {
+        "name": "Hindi Podcast",
+        "description": "Conversational Hindi podcast format",
+        "recommended_voices": ["hf_alpha", "hm_psi"],
+        "settings": {
+            "voice": "hf_alpha",
+            "speed": 1.0,
+            "enhance": True,
+            "gap_duration": 0.4,
+            "podcast_default_gap": 0.6,
+        },
+        "tips": [
+            "Natural conversational pace (1.0) for Hindi",
+            "Use hf_alpha and hm_psi for host/guest dynamic",
+            "ALWAYS include AI disclosure in first segment",
+            "Use Devanagari script for authentic pronunciation",
+            "Keep segments conversational and natural",
+        ],
+    },
+    "hindi_audiobook": {
+        "name": "Hindi Audiobook",
+        "description": "Long-form Hindi storytelling and narratives",
+        "recommended_voices": ["hf_beta", "hm_psi"],
+        "settings": {
+            "voice": "hf_beta",
+            "speed": 1.0,
+            "enhance": True,
+            "gap_duration": 0.8,
+            "trim_silence": True,
+        },
+        "tips": [
+            "hf_beta offers expressive delivery for storytelling",
+            "Standard speed for comfortable Hindi reading",
+            "Longer gaps between chapters/sections",
+            "Process in smaller chunks for best quality",
+            "Ideal for Hindi literature and stories",
+        ],
+    },
 }
 
 
@@ -607,6 +811,11 @@ def get_all_voices_comparison() -> dict[str, Any]:
             "by_accent": {
                 "american": [v for v in ALL_VOICES if v.startswith(("am_", "af_"))],
                 "british": [v for v in ALL_VOICES if v.startswith(("bm_", "bf_"))],
+                "hindi": [v for v in ALL_VOICES if v.startswith(("hm_", "hf_"))],
+            },
+            "by_language": {
+                "english": [v for v in ALL_VOICES if v.startswith(("am_", "af_", "bm_", "bf_"))],
+                "hindi": [v for v in ALL_VOICES if v.startswith(("hm_", "hf_"))],
             },
         },
         "voice_details": {},
@@ -673,10 +882,21 @@ def get_all_presets() -> dict[str, Any]:
         "mimeType": "application/json",
         "presets": CONFIGURATION_PRESETS,
         "categories": {
-            "education": ["youtube_tutorial", "audiobook_narration"],
-            "entertainment": ["podcast_host", "casual_vlog", "documentary_narration"],
+            "education": [
+                "youtube_tutorial",
+                "audiobook_narration",
+                "hindi_tutorial",
+                "hindi_audiobook",
+            ],
+            "entertainment": [
+                "podcast_host",
+                "casual_vlog",
+                "documentary_narration",
+                "hindi_podcast",
+            ],
             "professional": ["news_announcement", "product_demo"],
             "wellness": ["meditation_guide"],
+            "hindi": ["hindi_tutorial", "hindi_podcast", "hindi_audiobook"],
         },
     }
 

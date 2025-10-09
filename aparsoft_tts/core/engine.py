@@ -26,7 +26,9 @@ from aparsoft_tts.utils.exceptions import (
 from aparsoft_tts.utils.logging import LoggerMixin
 
 # Available voices from Kokoro-82M
-# Source: https://huggingface.co/datasets/ecyht2/kokoro-82M-voices
+# Source: https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
+
+# English voices
 MALE_VOICES = [
     "am_adam",      # American male - natural inflection
     "am_michael",   # American male - deeper tones (professional)
@@ -48,7 +50,18 @@ SPECIAL_VOICES = [
     "af",          # Default American female (Bella + Sarah mix)
 ]
 
-ALL_VOICES = MALE_VOICES + FEMALE_VOICES + SPECIAL_VOICES
+# Hindi voices (lang_code='h', requires espeak-ng with hi)
+HINDI_MALE_VOICES = [
+    "hm_omega",     # Hindi male - voice omega
+    "hm_psi",       # Hindi male - voice psi
+]
+
+HINDI_FEMALE_VOICES = [
+    "hf_alpha",     # Hindi female - voice alpha
+    "hf_beta",      # Hindi female - voice beta
+]
+
+ALL_VOICES = MALE_VOICES + FEMALE_VOICES + SPECIAL_VOICES + HINDI_MALE_VOICES + HINDI_FEMALE_VOICES
 
 
 def get_lang_code_from_voice(voice: str) -> str:
@@ -57,16 +70,26 @@ def get_lang_code_from_voice(voice: str) -> str:
     Kokoro requires lang_code to match voice prefix:
     - am_/af_ (American) -> 'a'
     - bm_/bf_ (British) -> 'b'
+    - hm_/hf_ (Hindi) -> 'h'
+    - jm_/jf_ (Japanese) -> 'j'
+    - zm_/zf_ (Chinese) -> 'z'
+    - em_/ef_ (Spanish) -> 'e'
+    - im_/if_ (Italian) -> 'i'
+    - pm_/pf_ (Portuguese) -> 'p'
+    - fm_/ff_ (French) -> 'f'
     
     Args:
-        voice: Voice name (e.g., 'am_michael', 'bm_george')
+        voice: Voice name (e.g., 'am_michael', 'hf_alpha', 'bm_george')
         
     Returns:
-        Lang code: 'a' for American, 'b' for British
+        Lang code: 'a' for American English, 'b' for British English, 
+                   'h' for Hindi, etc.
         
     Example:
         >>> get_lang_code_from_voice('am_michael')
         'a'
+        >>> get_lang_code_from_voice('hf_alpha')
+        'h'
         >>> get_lang_code_from_voice('bm_george')
         'b'
     """
@@ -74,9 +97,23 @@ def get_lang_code_from_voice(voice: str) -> str:
         return "a"  # American English
     elif voice.startswith(("bm_", "bf_")):
         return "b"  # British English
+    elif voice.startswith(("hm_", "hf_")):
+        return "h"  # Hindi
+    elif voice.startswith(("jm_", "jf_")):
+        return "j"  # Japanese
+    elif voice.startswith(("zm_", "zf_")):
+        return "z"  # Mandarin Chinese
+    elif voice.startswith(("em_", "ef_")):
+        return "e"  # Spanish
+    elif voice.startswith(("im_", "if_")):
+        return "i"  # Italian
+    elif voice.startswith(("pm_", "pf_")):
+        return "p"  # Brazilian Portuguese
+    elif voice.startswith(("fm_", "ff_")):
+        return "f"  # French
     else:
         # Fallback to first letter if voice format is non-standard
-        return voice[0] if voice and voice[0] in "ab" else "a"
+        return voice[0] if voice and voice[0] in "abhjzeipf" else "a"
 
 
 class TTSEngine(LoggerMixin):
@@ -708,11 +745,24 @@ class TTSEngine(LoggerMixin):
         """Get list of available voices.
 
         Returns:
-            Dictionary with 'male' and 'female' voice lists
+            Dictionary with voice categories:
+            - 'male': English male voices
+            - 'female': English female voices
+            - 'hindi_male': Hindi male voices
+            - 'hindi_female': Hindi female voices
+            - 'all': All available voices
 
         Example:
             >>> voices = TTSEngine.list_voices()
             >>> print(voices['male'])
             ['am_michael', 'bm_george', 'am_adam']
+            >>> print(voices['hindi_female'])
+            ['hf_alpha', 'hf_beta']
         """
-        return {"male": MALE_VOICES, "female": FEMALE_VOICES}
+        return {
+            "male": MALE_VOICES,
+            "female": FEMALE_VOICES,
+            "hindi_male": HINDI_MALE_VOICES,
+            "hindi_female": HINDI_FEMALE_VOICES,
+            "all": ALL_VOICES,
+        }

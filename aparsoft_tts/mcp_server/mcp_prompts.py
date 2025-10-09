@@ -16,14 +16,10 @@ Utility functions are imported from mcp_utils.py for template generation.
 """
 
 import warnings
-import os
-import platform
-from pathlib import Path
-from fastmcp import FastMCP
 from pydantic import BaseModel, Field, field_validator
 
 from aparsoft_tts.mcp_server import mcp_utils
-from aparsoft_tts.mcp_server.mcp_server_main import mcp, config, get_tts_engine
+from aparsoft_tts.mcp_server.mcp_server_main import mcp
 
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")

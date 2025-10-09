@@ -121,7 +121,7 @@ class GenerateSpeechRequest(BaseModel):
     text: str = Field(..., description="Text to convert to speech", min_length=1, max_length=10000)
     voice: str = Field(
         default="am_michael",
-        description=f"Voice ID. Available: {', '.join(ALL_VOICES)}",
+        description=f"Voice ID. English: am_michael, af_bella, bm_george, etc. | Hindi: hf_alpha, hf_beta, hm_omega, hm_psi. Available: {', '.join(ALL_VOICES)}",
     )
     speed: float = Field(
         default=1.0,
@@ -174,7 +174,7 @@ class PodcastSegment(BaseModel):
     text: str = Field(..., description="Segment text content", min_length=1, max_length=10000)
     voice: str = Field(
         default="am_michael",
-        description=f"Voice for this segment. Available: {', '.join(ALL_VOICES)}",
+        description=f"Voice for this segment. English: am_michael, af_bella, etc. | Hindi: hf_alpha, hf_beta, hm_omega, hm_psi. Available: {', '.join(ALL_VOICES)}",
     )
     speed: float = Field(
         default=1.0, description="Speech speed for this segment (0.5-2.0)", ge=0.5, le=2.0

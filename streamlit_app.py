@@ -410,7 +410,7 @@ with col2:
 
     # Check if OpenVoice is available
     try:
-        from aparsoft_tts.openvoice_engine import OpenVoiceEngine
+        from aparsoft_tts.core.openvoice_engine import OpenVoiceEngine
 
         openvoice_available = True
     except:

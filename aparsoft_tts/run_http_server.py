@@ -23,7 +23,7 @@ import warnings
 # Suppress warnings
 warnings.filterwarnings("ignore")
 
-from aparsoft_tts.mcp_server_main import mcp
+from aparsoft_tts.mcp_server import mcp
 from aparsoft_tts.utils.logging import get_logger
 
 log = get_logger(__name__)

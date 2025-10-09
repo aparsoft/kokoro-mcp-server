@@ -23,7 +23,7 @@ class TTSConfig(BaseSettings):
     # Voice Settings
     voice: str = Field(
         default="am_michael",
-        description="Default voice to use (am_michael, bm_george, am_adam, af_bella, etc.)",
+        description="Default voice to use (English: am_michael, bm_george, af_bella, etc. | Hindi: hf_alpha, hf_beta, hm_omega, hm_psi)",
     )
     # DEPRECATED: lang_code is now automatically determined from voice prefix
     # This field is kept for backwards compatibility but is not used by the engine
