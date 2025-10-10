@@ -280,3 +280,245 @@ async def troubleshoot_tts() -> str:
     except Exception as e:
         log.error("mcp_prompt_troubleshoot_tts_error", error=str(e))
         return f"❌ Error generating troubleshooting guide: {str(e)}"
+
+
+class EducationalScriptPromptArgs(BaseModel):
+    """Arguments for educational script processing prompt."""
+
+    script_type: str = Field(default="youtube_tutorial", description="Type of educational content")
+    has_segments: bool = Field(default=True, description="Whether script has multiple segments")
+    has_variable_speeds: bool = Field(
+        default=True, description="Whether script uses variable speeds"
+    )
+
+
+@mcp.prompt()
+async def educational_script_processor(args: EducationalScriptPromptArgs) -> str:
+    """Guide for processing educational video scripts correctly.
+
+    **🎓 CRITICAL: Educational scripts need special handling!**
+
+    This prompt explains:
+    - When to use which TTS tool for educational content
+    - How to parse educational script markdown
+    - Common mistakes and how to avoid them
+    - Tool selection decision tree
+
+    **Common Mistake:**
+    ❌ Using `process_script` on markdown educational scripts
+    → Results in voice reading "hash hash hash" and all metadata!
+
+    ✅ Use `process_educational_script` instead for:
+    - Scripts with ## SEGMENT markers
+    - Variable speed annotations [Speed: 1.2x]
+    - Markdown formatting to ignore
+
+    Args:
+        args: Script characteristics
+
+    Returns:
+        Complete guide for processing educational scripts
+
+    Example:
+        >>> await educational_script_processor(EducationalScriptPromptArgs(
+        ...     script_type="youtube_tutorial",
+        ...     has_segments=True,
+        ...     has_variable_speeds=True
+        ... ))
+    """
+    try:
+        bind_context(
+            operation="educational_script_processor_prompt",
+            script_type=args.script_type,
+            has_segments=args.has_segments,
+        )
+
+        guide = (
+            f"""🎓 **EDUCATIONAL SCRIPT PROCESSING GUIDE**
+
+**Script Type:** {args.script_type}
+**Has Segments:** {args.has_segments}
+**Variable Speeds:** {args.has_variable_speeds}
+
+---
+
+### ⚠️ CRITICAL: TOOL SELECTION DECISION TREE
+
+**BEFORE YOU START - Ask yourself:**
+
+**Q1: Is this a markdown file with ## SEGMENT headers?**
+→ **YES**: Continue to Q2
+→ **NO**: Go to Q4
+
+**Q2: Does it have variable speeds like [Speed: 1.2x]?**
+→ **YES**: Use `process_educational_script` ✅
+→ **NO**: Continue to Q3
+
+**Q3: Does it have multiple segments that need different voices/speeds?**
+→ **YES**: Manually extract segments → Use `generate_podcast` ✅
+→ **NO**: Extract just narration text → Use `process_script` ⚠️
+
+**Q4: Is it plain text without any markdown?**
+→ **YES**: Use `process_script` ✅
+→ **NO**: Extract text first, then use appropriate tool
+
+---
+
+### 🚨 COMMON MISTAKES TO AVOID
+
+**MISTAKE #1: Using process_script on markdown files**
+```
+❌ WRONG:
+await process_script(ProcessScriptRequest(
+    script_path="tutorial.md"  # Has ## SEGMENT headers!
+))
+
+Result: Voice reads "hash hash hash SEGMENT 1 dash Introduction
+        bracket Speed colon 1.2x bracket..."
+```
+
+```
+✅ CORRECT:
+await process_educational_script(ProcessEducationalScriptRequest(
+    script_path="tutorial.md",
+    voice="hf_beta"
+))
+
+Result: Clean narration with proper speeds per segment!
+```
+
+**MISTAKE #2: Not recognizing segment patterns**
+
+If you see THIS in the script:
+```markdown
+## SEGMENT 1 - Introduction [Speed: 1.2x]
+Narration text here...
+
+## SEGMENT 2 - Main Content [Speed: 1.1x]
+More narration...
+```
+
+→ This is an **EDUCATIONAL SCRIPT** with segments!
+→ Use `process_educational_script` tool!
+
+**MISTAKE #3: Passing raw markdown to generate_podcast**
+
+❌ Don't pass markdown headers/metadata as "text"
+✅ Extract ONLY the actual narration text
+
+---
+
+### ✅ CORRECT WORKFLOW FOR YOUR SCRIPT
+
+**Your script characteristics:**
+- Type: {args.script_type}
+- Has segments: {args.has_segments}
+- Variable speeds: {args.has_variable_speeds}
+
+"""
+            + (
+                f"""**RECOMMENDED TOOL: `process_educational_script`** ✅
+
+**Why:** Your script has segments with variable speeds in markdown format.
+
+**Usage:**
+```python
+await process_educational_script(ProcessEducationalScriptRequest(
+    script_path="your_script.md",
+    voice="hf_beta",  # or hf_alpha, hm_omega, etc.
+    output_path="output.wav",
+    gap_duration=0.5
+))
+```
+
+**What it does automatically:**
+1. ✅ Parses ## SEGMENT headers
+2. ✅ Extracts [Speed: X.Xx] values
+3. ✅ Removes all markdown formatting
+4. ✅ Ignores metadata and comments
+5. ✅ Creates segments with correct speeds
+6. ✅ Merges into single audio file
+
+**You don't need to:**
+- ❌ Manually extract text from each segment
+- ❌ Parse speed values yourself
+- ❌ Clean up markdown formatting
+- ❌ Call generate_podcast manually
+
+"""
+                if args.has_segments and args.has_variable_speeds
+                else f"""**RECOMMENDED APPROACH:**
+
+1. **Extract narration text** from each segment (ignore headers/metadata)
+2. **Use `generate_podcast` tool** with segments array
+3. **Set speeds manually** based on content type
+
+**Example:**
+```python
+await generate_podcast(GeneratePodcastRequest(
+    segments=[
+        PodcastSegment(
+            text="Introduction narration...",
+            voice="hf_beta",
+            speed=1.2,
+            name="intro"
+        ),
+        PodcastSegment(
+            text="Main content narration...",
+            voice="hf_beta",
+            speed=1.1,
+            name="main"
+        )
+    ],
+    output_path="output.wav"
+))
+```
+"""
+            )
+            + f"""
+
+---
+
+### 📋 QUICK REFERENCE TABLE
+
+| Script Format | Has Segments | Variable Speeds | Tool to Use |
+|---------------|--------------|-----------------|-------------|
+| Markdown with ## SEGMENT | ✅ | ✅ | `process_educational_script` |
+| Markdown with ## SEGMENT | ✅ | ❌ | Extract text → `generate_podcast` |
+| Plain text file | ❌ | ❌ | `process_script` |
+| Multiple texts | N/A | N/A | `batch_generate` |
+| Single text | ❌ | ❌ | `generate_speech` |
+
+---
+
+### 🎯 KEY TAKEAWAYS
+
+1. **Educational scripts** (markdown with segments) need **special handling**
+2. **process_script** reads files **as-is** (includes all formatting)
+3. **process_educational_script** **parses** markdown and extracts clean text
+4. When in doubt: **Check for ## SEGMENT headers** → Use educational tool
+5. **Variable speeds** make content more engaging → Always use when specified
+
+---
+
+### 💡 PRO TIP
+
+Before processing ANY script file:
+1. 🔍 Quick scan for ## SEGMENT markers
+2. 👀 Look for [Speed: X.Xx] annotations
+3. ✅ Choose appropriate tool based on findings
+4. 🚀 Process with confidence!
+
+---
+
+Ready to process your educational script correctly? Let's do this! 🎓
+"""
+        )
+
+        log.info("mcp_prompt_educational_script_processor_generated", script_type=args.script_type)
+
+        return guide
+
+    except Exception as e:
+        log.error("mcp_prompt_educational_script_processor_error", error=str(e))
+        return f"❌ Error generating educational script guide: {str(e)}"
