@@ -10,7 +10,7 @@ A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface
 
 ## 📺 Demo Video
 
-[![Watch the video](https://img.youtube.com/vi/CDEtzQHpJ7E/0.jpg)](https://youtu.be/CDEtzQHpJ7E)
+[![Watch the Demo Video](images/youtube_vid.png)](https://youtu.be/CDEtzQHpJ7E)
 
 ---
 
