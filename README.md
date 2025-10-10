@@ -10,9 +10,7 @@ A comprehensive Text-to-Speech toolkit built on [Kokoro-82M](https://huggingface
 
 ## 📺 Demo Video
 
-[![Kokoro MCP Server Demo](https://img.youtube.com/vi/CDEtzQHpJ7E/maxresdefault.jpg)](https://youtu.be/CDEtzQHpJ7E)
-
-**[▶️ Watch the Demo on YouTube](https://youtu.be/CDEtzQHpJ7E)**
+[![Watch the video](https://img.youtube.com/vi/CDEtzQHpJ7E/0.jpg)](https://youtu.be/CDEtzQHpJ7E)
 
 ---
 
