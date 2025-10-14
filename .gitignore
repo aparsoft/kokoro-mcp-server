@@ -176,3 +176,5 @@ pages
 pages/*
 *test_*
 scripts
+fastapi_aparsoft_tts
+fastapi_aparsoft_tts/*
