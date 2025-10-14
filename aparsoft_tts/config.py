@@ -205,7 +205,7 @@ class Config(BaseSettings):
     # Engine Selection
     engine: Literal["kokoro", "openvoice"] = Field(
         default="kokoro",
-        description="TTS engine to use: 'kokoro' (fast, English) or 'openvoice' (cloning, multilingual)"
+        description="TTS engine to use: 'kokoro' (fast, English) or 'openvoice' (cloning, multilingual)",
     )
 
     # Sub-configurations
