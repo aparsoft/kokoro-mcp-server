@@ -1,12 +1,22 @@
 # Aparsoft TTS Streamlit - Quick Start Guide
 
-Get the Streamlit management interface running in 2 minutes!
+Get the Streamlit management interface running in 2 minutes with **multi-engine support**!
+
+## 🚀 Three Engines, One Interface
+
+- **Kokoro**: Fast English TTS (82M params)
+- **Indic Parler-TTS**: Professional Hindi/Indic (900M params, 83.43 MOS)
+- **OpenVoice V2**: Voice cloning from reference audio
 
 ## Prerequisites
 
 - Python 3.10 or higher
-- 4GB+ RAM recommended
-- Internet connection (for initial setup)
+- **RAM Requirements**:
+  - Kokoro only: 4GB
+  - With Indic: 8GB+ recommended
+  - With OpenVoice: 6GB+ recommended
+  - All engines: 10GB+ recommended
+- Internet connection (for initial model downloads)
 
 ## Installation Steps
 
@@ -33,11 +43,28 @@ brew install espeak ffmpeg
 cd /path/to/youtube-creator
 
 # Install Streamlit and dependencies
-pip install -r streamlit_requirements.txt
+pip install streamlit plotly pandas soundfile
 
-# Install aparsoft_tts package
-pip install -e ".[mcp,cli]"
+# Choose your engine installation:
+
+# Option 1: Kokoro only (fastest, smallest ~200MB)
+pip install -e .
+
+# Option 2: With Indic engine (professional Hindi, ~2GB)
+pip install -e ".[indic]"
+
+# Option 3: With OpenVoice (voice cloning, ~1GB)
+pip install -e ".[openvoice]"
+
+# Option 4: All engines (complete, ~3GB)
+pip install -e ".[complete]"
 ```
+
+**What gets installed:**
+- **Base**: Kokoro engine, core TTS functionality
+- **[indic]**: Adds Indic Parler-TTS for 21 Indic languages
+- **[openvoice]**: Adds OpenVoice V2 for voice cloning
+- **[complete]**: All engines + all features
 
 ### 3. Run the App
 
@@ -73,14 +100,35 @@ http://localhost:8501
 
 ## First-Time Usage
 
-### 1. Generate Your First Audio
+### 1. Select Your Engine
 
+1. Open sidebar (should be visible by default)
+2. Look for "🎨 Engine Selection"
+3. Choose from:
+   - 🚀 **Kokoro** (Fast English) - Default
+   - 🇮🇳 **Indic Parler-TTS** (Professional Hindi)
+   - 🎭 **OpenVoice** (Voice Cloning)
+4. Engine info shows below (model size, languages, voices)
+
+### 2. Generate Your First Audio
+
+**With Kokoro (English):**
 1. Click on "🎯 Single Generation" tab
 2. Enter text: `"Welcome to Aparsoft TTS"`
-3. Click "🎤 Generate Speech"
-4. Listen to the audio and download it!
+3. Select voice: `am_michael`
+4. Click "🎤 Generate Speech"
+5. Listen and download!
 
-### 2. Try Different Voices
+**With Indic (Hindi):**
+1. Select "Indic Parler-TTS" engine in sidebar
+2. Click on "🎯 Single Generation" tab
+3. Enter text: `"नमस्ते दोस्तों, आज हम AI के बारे में बात करेंगे"`
+4. Select voice: `rohit` or `divya`
+5. Select emotion: `narration` or `neutral`
+6. Click "🎤 Generate Speech"
+7. Enjoy professional Hindi quality!
+
+### 3. Try Different Voices
 
 1. Go to "🔍 Voice Explorer" tab
 2. Enter sample text
@@ -99,13 +147,38 @@ http://localhost:8501
 
 ### Generate Audio with Custom Settings
 
+**Kokoro Engine:**
 ```
-1. Tab: Single Generation
-2. Enter text
-3. Select voice (e.g., am_michael)
-4. Adjust speed (0.5x - 2.0x)
-5. Toggle enhancement
-6. Click Generate
+1. Sidebar: Select "Kokoro (Fast English)"
+2. Tab: Single Generation
+3. Enter English text
+4. Voice: am_michael (recommended)
+5. Speed: 1.0x
+6. Enhancement: Enable
+7. Click Generate
+```
+
+**Indic Engine:**
+```
+1. Sidebar: Select "Indic Parler-TTS (Hindi)"
+2. Tab: Single Generation
+3. Enter Hindi/Indic text
+4. Voice: rohit (male) or divya (female)
+5. Emotion: narration (for storytelling)
+6. Speed: 0.95x (slightly slower for clarity)
+7. Enhancement: Enable
+8. Click Generate
+```
+
+**OpenVoice Engine:**
+```
+1. Sidebar: Select "OpenVoice (Cloning)"
+2. Upload reference audio (3-10 seconds)
+3. Tab: Single Generation
+4. Enter text in reference voice's language
+5. Speed: 1.0x
+6. Enhancement: Enable
+7. Click Generate
 ```
 
 ### Batch Process Multiple Texts
@@ -196,28 +269,77 @@ pip install -e ".[mcp,cli]"
 
 ## Tips & Tricks
 
+### Engine Selection Guide
+
+**Use Kokoro when:**
+- ✅ Content is in English
+- ✅ Need fast generation
+- ✅ Making drafts/tests
+- ✅ Low on RAM
+
+**Use Indic Parler-TTS when:**
+- ✅ Content is in Hindi or Indic languages
+- ✅ Need professional quality (83.43 MOS)
+- ✅ Want emotion control
+- ✅ Making podcasts/educational content
+- ✅ Have 8GB+ RAM
+
+**Use OpenVoice when:**
+- ✅ Need specific voice matching
+- ✅ Creating character voices
+- ✅ Brand consistency required
+- ✅ Have reference audio available
+
 ### For YouTube Creators
 
+**English Content:**
 ```
+Engine: Kokoro
 Voice: am_michael
 Speed: 1.0x
 Enhancement: Enabled
 Gap (scripts): 0.5s
 
-This gives professional, clear voiceovers
-perfect for tutorials and explainers.
+Professional, clear voiceovers
+perfect for tutorials.
+```
+
+**Hindi Content:**
+```
+Engine: Indic Parler-TTS
+Voice: rohit or divya
+Emotion: narration
+Speed: 0.95x
+Enhancement: Enabled
+Gap: 0.5s
+
+Professional Hindi voiceovers
+for educational content.
 ```
 
 ### For Podcasts
 
+**English Podcast:**
 ```
+Engine: Kokoro
 Voice: af_bella or am_michael
 Speed: 0.95x
 Enhancement: Enabled
 Gap: 0.3s
 
-Slightly slower pace with warm tones
-creates engaging podcast content.
+Warm, engaging delivery.
+```
+
+**Hindi Podcast:**
+```
+Engine: Indic Parler-TTS
+Voice: divya (female) or rohit (male)
+Emotion: conversation or narration
+Speed: 0.9x
+Enhancement: Enabled
+Gap: 0.3s
+
+Natural, engaging Hindi podcast.
 ```
 
 ### For Quick Drafts
@@ -350,10 +472,25 @@ config/
 
 On typical hardware (i5/Ryzen 5, 8GB RAM):
 
-- **Single Generation**: ~0.5-0.7s per second of audio
-- **Batch (10 items)**: ~5-7s total
-- **Script Processing**: ~1s per 100 words
-- **Voice Comparison**: ~0.6s per voice
+**Kokoro Engine:**
+- **Loading Time**: ~2s (first time)
+- **Generation**: ~0.5s per second of audio
+- **Memory**: ~200MB
+- **Best for**: Fast iterations
+
+**Indic Parler-TTS Engine:**
+- **Loading Time**: ~10-15s (first time)
+- **Generation**: ~1.5-2s per second of audio
+- **Memory**: ~2GB
+- **Best for**: Quality Hindi content
+
+**OpenVoice Engine:**
+- **Loading Time**: ~5-7s (first time)
+- **Generation**: ~1s per second of audio
+- **Memory**: ~1GB
+- **Best for**: Voice matching
+
+**Note**: Engines use lazy loading - they load only when first selected!
 
 ## Best Practices
 

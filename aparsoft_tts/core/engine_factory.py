@@ -27,12 +27,12 @@ from aparsoft_tts.utils.logging import get_logger
 log = get_logger(__name__)
 
 # Type alias for engine types
-EngineType = Literal["kokoro", "openvoice"]
+EngineType = Literal["kokoro", "openvoice", "indic"]
 
 
 def get_tts_engine(
     engine_type: EngineType | None = None,
-) -> Union["TTSEngine", "OpenVoiceEngine"]:  # noqa: F821
+) -> Union["TTSEngine", "OpenVoiceEngine", "IndicParlerEngine"]:  # noqa: F821
     """Factory function to get TTS engine based on type.
 
     This function creates and returns the appropriate TTS engine instance
@@ -41,7 +41,7 @@ def get_tts_engine(
     Engine Comparison:
         - **kokoro**: Fast, high-quality English TTS with pre-defined voices
           - Best for: Speed, English content, professional voices
-          - Languages: English (US/UK)
+          - Languages: English (US/UK), Hindi (basic)
           - Voices: 11 pre-defined professional voices
 
         - **openvoice**: Multilingual voice cloning with zero-shot capability
@@ -49,12 +49,17 @@ def get_tts_engine(
           - Languages: EN, ES, FR, ZH, JA, KO
           - Voices: Clone ANY voice from 3-5s reference audio
 
+        - **indic**: Professional Indic language TTS (AI4Bharat)
+          - Best for: Hindi and other Indian languages
+          - Languages: 21 Indic languages (Hindi, Bengali, Tamil, etc.)
+          - Voices: 69 professional voices, MOS 83.43 for Hindi
+
     Args:
         engine_type: Type of engine to use. If None, uses config setting.
-                    Options: "kokoro" or "openvoice"
+                    Options: "kokoro", "openvoice", or "indic"
 
     Returns:
-        TTSEngine (Kokoro) or OpenVoiceEngine instance
+        TTSEngine (Kokoro), OpenVoiceEngine, or IndicParlerEngine instance
 
     Raises:
         ValueError: If invalid engine type specified
@@ -84,10 +89,12 @@ def get_tts_engine(
     log.info("initializing_tts_engine", engine_type=engine_type)
 
     # Validate engine type
-    if engine_type not in ("kokoro", "openvoice"):
-        raise ValueError(f"Invalid engine type: {engine_type}. Must be 'kokoro' or 'openvoice'")
+    if engine_type not in ("kokoro", "openvoice", "indic"):
+        raise ValueError(
+            f"Invalid engine type: {engine_type}. Must be 'kokoro', 'openvoice', or 'indic'"
+        )
 
-    # Import and initialize appropriate engine
+    # Import and initialize appropriate engine (ONLY the one requested - lazy loading)
     if engine_type == "kokoro":
         from aparsoft_tts.core.engine import TTSEngine
 
@@ -112,6 +119,22 @@ def get_tts_engine(
                 f"See README_OPENVOICE.md for details."
             ) from e
 
+    elif engine_type == "indic":
+        try:
+            from aparsoft_tts.core.engine_indic_parler import IndicParlerEngine
+
+            log.info("using_indic_parler_engine")
+            return IndicParlerEngine()
+
+        except ImportError as e:
+            log.error("indic_parler_import_failed", error=str(e))
+            raise ImportError(
+                f"Indic Parler-TTS engine not available: {e}\n\n"
+                f"To install Indic Parler-TTS:\n"
+                f"  pip install git+https://github.com/huggingface/parler-tts.git\n\n"
+                f"The model will auto-download (~2.5GB) on first use."
+            ) from e
+
 
 def get_engine_info(engine_type: EngineType) -> dict:
     """Get information about an engine type.
@@ -131,8 +154,8 @@ def get_engine_info(engine_type: EngineType) -> dict:
         "kokoro": {
             "name": "Kokoro TTS",
             "description": "Fast, high-quality English TTS with pre-defined voices",
-            "languages": ["English (US)", "English (UK)"],
-            "language_codes": ["en-us", "en-gb"],
+            "languages": ["English (US)", "English (UK)", "Hindi (basic)"],
+            "language_codes": ["en-us", "en-gb", "hi"],
             "voices": 11,
             "features": [
                 "Fast generation",
@@ -178,6 +201,38 @@ def get_engine_info(engine_type: EngineType) -> dict:
             "model_size": "Multiple models (larger)",
             "license": "MIT",
         },
+        "indic": {
+            "name": "Indic Parler-TTS (AI4Bharat)",
+            "description": "Professional Indic language TTS by IIT Madras",
+            "languages": [
+                "Hindi",
+                "Bengali",
+                "Tamil",
+                "Telugu",
+                "Kannada",
+                "Malayalam",
+                "Marathi",
+                "Gujarati",
+                "and 13 more Indic languages",
+            ],
+            "language_codes": ["hi", "bn", "ta", "te", "kn", "ml", "mr", "gu", "..."],
+            "voices": "69 professional voices across languages",
+            "features": [
+                "Professional Hindi quality (MOS 83.43)",
+                "10 emotion controls",
+                "Style control (speed, pitch, expressivity)",
+                "Purpose-built for Indian languages",
+                "Auto language detection",
+            ],
+            "best_for": [
+                "Hindi YouTube content",
+                "Indian language videos",
+                "Emotional/expressive content",
+                "Regional language content",
+            ],
+            "model_size": "0.9B parameters",
+            "license": "Apache 2.0",
+        },
     }
 
     return engines.get(engine_type, {})
@@ -211,6 +266,7 @@ def compare_engines() -> str:
     """
     kokoro_info = get_engine_info("kokoro")
     openvoice_info = get_engine_info("openvoice")
+    indic_info = get_engine_info("indic")
 
     comparison = f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -256,6 +312,27 @@ def compare_engines() -> str:
     for use_case in openvoice_info["best_for"]:
         comparison += f"    • {use_case}\n"
 
+    comparison += f"""
+───────────────────────────────────────────────────────────────
+
+🇮🇳 INDIC PARLER-TTS (AI4BHARAT)
+  Description: {indic_info['description']}
+  Languages: {', '.join(indic_info['languages'])}
+  Voices: {indic_info['voices']}
+  Model Size: {indic_info['model_size']}
+  License: {indic_info['license']}
+  
+  ✨ Features:
+"""
+    for feature in indic_info["features"]:
+        comparison += f"    • {feature}\n"
+
+    comparison += f"""
+  🎯 Best For:
+"""
+    for use_case in indic_info["best_for"]:
+        comparison += f"    • {use_case}\n"
+
     comparison += """
 ───────────────────────────────────────────────────────────────
 
@@ -269,12 +346,18 @@ Choose Kokoro if you need:
 
 Choose OpenVoice if you need:
   ✓ Voice cloning capability
-  ✓ Multilingual content (6 languages)
+  ✓ Multilingual content (ES, FR, ZH, JA, KO)
   ✓ Cross-lingual dubbing
   ✓ Your own or custom voices
 
-Both engines can be used in the same project!
-Switch with: ENGINE=kokoro or ENGINE=openvoice in .env
+Choose Indic if you need:
+  ✓ Professional Hindi TTS (83.43 MOS)
+  ✓ Indian language content
+  ✓ Emotion control
+  ✓ 21 Indic languages
+
+All engines can be used in the same project!
+Switch with: ENGINE=kokoro, ENGINE=openvoice, or ENGINE=indic in .env
 
 """
     return comparison

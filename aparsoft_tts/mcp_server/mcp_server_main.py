@@ -46,7 +46,8 @@ from pydantic import BaseModel, Field, field_validator
 warnings.filterwarnings("ignore")
 
 from aparsoft_tts.config import get_config
-from aparsoft_tts.core.engine import ALL_VOICES, TTSEngine
+from aparsoft_tts.core.engine import ALL_VOICES
+from aparsoft_tts.core.engine_factory import get_tts_engine as get_engine_from_factory
 from aparsoft_tts.utils.logging import get_logger, setup_logging
 
 # Initialize logging - force stderr for MCP compatibility
@@ -94,24 +95,33 @@ config = get_config()
 # Initialize FastMCP server
 mcp = FastMCP(config.mcp.server_name, version=config.mcp.server_version)
 
-# TTS engine - LAZY INITIALIZATION
-# Don't load the model at import time! Load only when first needed.
+# TTS engine cache - LAZY INITIALIZATION
+# Engines are only loaded when first needed (lazy loading per engine type)
 # This prevents blocking Claude Desktop/Cursor during MCP server startup.
-tts_engine: TTSEngine | None = None
+_engine_cache: dict[str, Any] = {}
 
 
-def get_tts_engine() -> TTSEngine:
-    """Get or initialize the TTS engine (lazy loading).
+def get_tts_engine(engine_type: str = "kokoro") -> Any:
+    """Get or initialize a TTS engine (lazy loading with caching).
 
-    The engine is only initialized on first use, not at module import.
-    This ensures fast MCP server startup for Claude Desktop/Cursor.
+    Each engine type is loaded only once and cached. This ensures:
+    - Fast MCP server startup (no model loading at import)
+    - Memory efficiency (only requested engines are loaded)
+    - Performance (engines are reused once loaded)
+
+    Args:
+        engine_type: Engine type ("kokoro", "openvoice", or "indic")
+
+    Returns:
+        Initialized TTS engine instance
     """
-    global tts_engine
-    if tts_engine is None:
-        log.info("initializing_tts_engine", msg="First use - loading model...")
-        tts_engine = TTSEngine()
-        log.info("tts_engine_ready", msg="Model loaded successfully")
-    return tts_engine
+    if engine_type not in _engine_cache:
+        log.info(
+            "initializing_tts_engine", engine_type=engine_type, msg="First use - loading model..."
+        )
+        _engine_cache[engine_type] = get_engine_from_factory(engine_type)
+        log.info("tts_engine_ready", engine_type=engine_type, msg="Model loaded successfully")
+    return _engine_cache[engine_type]
 
 
 # Pydantic models for request validation
@@ -121,7 +131,7 @@ class GenerateSpeechRequest(BaseModel):
     text: str = Field(..., description="Text to convert to speech", min_length=1, max_length=10000)
     voice: str = Field(
         default="am_michael",
-        description=f"Voice ID. English: am_michael, af_bella, bm_george, etc. | Hindi: hf_alpha, hf_beta, hm_omega, hm_psi. Available: {', '.join(ALL_VOICES)}",
+        description=f"Voice ID. Kokoro: am_michael, af_bella, bm_george, etc. | Indic: divya, rohit, aman, rani. Available: {', '.join(ALL_VOICES)}",
     )
     speed: float = Field(
         default=1.0,
@@ -137,6 +147,14 @@ class GenerateSpeechRequest(BaseModel):
         default=True,
         description="Apply audio enhancement (normalization, noise reduction, etc.)",
     )
+    engine: str = Field(
+        default="kokoro",
+        description="TTS engine to use: 'kokoro' (fast English), 'openvoice' (voice cloning), or 'indic' (Hindi/Indic languages)",
+    )
+    emotion: str = Field(
+        default="neutral",
+        description="Emotion for Indic engine: neutral, happy, sad, angry, narration, conversation (ignored for Kokoro)",
+    )
 
 
 class BatchGenerateRequest(BaseModel):
@@ -149,6 +167,14 @@ class BatchGenerateRequest(BaseModel):
     )
     voice: str = Field(default="am_michael", description="Voice to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    engine: str = Field(
+        default="kokoro",
+        description="TTS engine: 'kokoro', 'openvoice', or 'indic'",
+    )
+    emotion: str = Field(
+        default="neutral",
+        description="Emotion for Indic engine (ignored for Kokoro)",
+    )
 
 
 class ProcessScriptRequest(BaseModel):
@@ -166,6 +192,14 @@ class ProcessScriptRequest(BaseModel):
     )
     voice: str = Field(default="am_michael", description="Voice to use")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    engine: str = Field(
+        default="kokoro",
+        description="TTS engine: 'kokoro', 'openvoice', or 'indic'",
+    )
+    emotion: str = Field(
+        default="neutral",
+        description="Emotion for Indic engine (ignored for Kokoro)",
+    )
 
 
 class PodcastSegment(BaseModel):
@@ -174,20 +208,23 @@ class PodcastSegment(BaseModel):
     text: str = Field(..., description="Segment text content", min_length=1, max_length=10000)
     voice: str = Field(
         default="am_michael",
-        description=f"Voice for this segment. English: am_michael, af_bella, etc. | Hindi: hf_alpha, hf_beta, hm_omega, hm_psi. Available: {', '.join(ALL_VOICES)}",
+        description=f"Voice for this segment. Kokoro: am_michael, af_bella | Indic: divya, rohit. Available: {', '.join(ALL_VOICES)}",
     )
     speed: float = Field(
         default=1.0, description="Speech speed for this segment (0.5-2.0)", ge=0.5, le=2.0
     )
     name: str = Field(default="", description="Optional segment name/label for identification")
+    emotion: str = Field(
+        default="neutral",
+        description="Emotion for Indic engine: neutral, happy, sad, angry, narration, conversation",
+    )
 
-    @field_validator("voice")
-    @classmethod
-    def validate_voice(cls, v: str) -> str:
-        """Validate voice is in available voices."""
-        if v not in ALL_VOICES:
-            raise ValueError(f"Invalid voice '{v}'. Must be one of: {', '.join(ALL_VOICES)}")
-        return v
+    # Note: Voice validation removed to support multi-engine architecture
+    # Different engines have different voice sets:
+    # - Kokoro: am_michael, af_bella, etc.
+    # - Indic: divya, rohit, madhav, etc.
+    # - OpenVoice: Custom voices
+    # Validation is now done at the engine level
 
 
 class TranscribeAudioRequest(BaseModel):
@@ -251,6 +288,10 @@ class GeneratePodcastRequest(BaseModel):
         le=5.0,
     )
     enhance: bool = Field(default=True, description="Apply audio enhancement to all segments")
+    engine: str = Field(
+        default="kokoro",
+        description="TTS engine for all segments: 'kokoro', 'openvoice', or 'indic'",
+    )
 
     @field_validator("segments")
     @classmethod

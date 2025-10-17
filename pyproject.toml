@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "aparsoft-tts"
 version = "1.0.0"
-description = "Comprehensive Text-to-Speech Solution for YouTube Videos using Kokoro TTS and MCP Server"
+description = "Multi-Engine Text-to-Speech Solution with Kokoro (English), Indic Parler-TTS (Hindi/21 Indic languages), and OpenVoice (Voice Cloning) - MCP Server & API"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
@@ -16,13 +16,19 @@ keywords = [
     "tts",
     "text-to-speech",
     "kokoro",
+    "indic",
+    "parler-tts",
+    "hindi",
+    "openvoice",
+    "voice-cloning",
     "huggingface",
     "mcp",
     "model-context-protocol",
     "youtube",
     "audio",
     "voice-synthesis",
-    "streamlit"
+    "streamlit",
+    "multi-engine"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -60,6 +66,19 @@ stt = [
     "openai-whisper>=20231117",
 ]
 
+# Indic Parler-TTS engine support (for professional Hindi/Indic languages)
+indic = [
+    "parler-tts @ git+https://github.com/huggingface/parler-tts.git",
+    "transformers>=4.35.0",
+    "accelerate>=0.20.0",
+    "torch>=2.0.0",
+]
+
+# OpenVoice engine support (for voice cloning)
+openvoice = [
+    "openvoice>=0.1.0",
+]
+
 # CLI interface
 cli = [
     "typer>=0.9.0",
@@ -93,14 +112,19 @@ docs = [
     "sphinx-autodoc-typehints>=1.24.0",
 ]
 
-# All features (MCP + CLI + STT + Streamlit + Dev + Docs)
+# All features (MCP + CLI + STT + Indic + OpenVoice + Streamlit + Dev + Docs)
 all = [
-    "aparsoft-tts[mcp,cli,stt,streamlit,dev,docs]",
+    "aparsoft-tts[mcp,cli,stt,indic,openvoice,streamlit,dev,docs]",
 ]
 
-# Complete installation without development tools (includes STT)
+# Complete installation without development tools (includes STT + Indic + OpenVoice)
 complete = [
-    "aparsoft-tts[mcp,cli,stt,streamlit]",
+    "aparsoft-tts[mcp,cli,stt,indic,openvoice,streamlit]",
+]
+
+# Multi-engine support (Kokoro + Indic + OpenVoice)
+engines = [
+    "aparsoft-tts[indic,openvoice]",
 ]
 
 [project.urls]
@@ -112,6 +136,9 @@ Issues = "https://github.com/aparsoft/youtube-tts/issues"
 [project.scripts]
 aparsoft-tts = "aparsoft_tts.cli:app"
 aparsoft-tts-server = "aparsoft_tts.mcp_server:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["aparsoft_tts"]

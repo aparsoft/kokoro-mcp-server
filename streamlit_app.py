@@ -35,7 +35,15 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from aparsoft_tts import TTSEngine, TTSConfig, ALL_VOICES, MALE_VOICES, FEMALE_VOICES
+from aparsoft_tts.core.engine_factory import get_tts_engine, get_engine_info, compare_engines
+from aparsoft_tts.core.engine import (
+    ALL_VOICES,
+    MALE_VOICES,
+    FEMALE_VOICES,
+    HINDI_MALE_VOICES,
+    HINDI_FEMALE_VOICES,
+)
+from aparsoft_tts import TTSConfig
 from aparsoft_tts.utils.audio import enhance_audio, get_audio_duration
 from aparsoft_tts.config import get_config
 
@@ -167,8 +175,11 @@ st.markdown(
 # ==========================================
 # SESSION STATE INITIALIZATION
 # ==========================================
-if "engine" not in st.session_state:
-    st.session_state.engine = None
+if "engine_cache" not in st.session_state:
+    st.session_state.engine_cache = {}
+
+if "current_engine_type" not in st.session_state:
+    st.session_state.current_engine_type = "kokoro"
 
 if "generation_history" not in st.session_state:
     st.session_state.generation_history = []
@@ -191,19 +202,17 @@ if "podcast_segment_counter" not in st.session_state:
 
 
 @streamlit_error_handler()
-def initialize_engine(config: TTSConfig = None) -> TTSEngine:
-    """Initialize TTS engine with optional custom config"""
-    with st.spinner("🔄 Initializing TTS Engine..."):
-        engine = TTSEngine(config=config)
-        st.session_state.engine = engine
-    return engine
+def get_current_engine():
+    """Get or initialize the current TTS engine using factory pattern."""
+    engine_type = st.session_state.current_engine_type
 
+    # Check if engine is already cached
+    if engine_type not in st.session_state.engine_cache:
+        with st.spinner(f"🔄 Loading {engine_type} engine..."):
+            engine = get_tts_engine(engine_type)
+            st.session_state.engine_cache[engine_type] = engine
 
-def get_engine() -> TTSEngine:
-    """Get or create TTS engine instance"""
-    if st.session_state.engine is None:
-        return initialize_engine()
-    return st.session_state.engine
+    return st.session_state.engine_cache[engine_type]
 
 
 def add_to_history(entry: Dict[str, Any]):
@@ -263,23 +272,64 @@ with st.sidebar:
     with col1:
         st.metric("Total Generations", st.session_state.total_generations)
     with col2:
-        st.metric("Active Sessions", 1 if st.session_state.engine else 0)
+        current_engine_type = st.session_state.current_engine_type
+        is_loaded = current_engine_type in st.session_state.engine_cache
+        st.metric("Engine Loaded", "Yes" if is_loaded else "No")
+
+    st.markdown("---")
+
+    # Engine Selection
+    st.markdown("### 🎨 Engine Selection")
+
+    engine_options = {
+        "kokoro": "🚀 Kokoro (Fast English)",
+        "indic": "🇮🇳 Indic Parler-TTS (Hindi)",
+        "openvoice": "🎭 OpenVoice (Cloning)",
+    }
+
+    selected_engine = st.selectbox(
+        "Choose TTS Engine",
+        options=list(engine_options.keys()),
+        format_func=lambda x: engine_options[x],
+        index=list(engine_options.keys()).index(st.session_state.current_engine_type),
+        help="Select the TTS engine to use",
+    )
+
+    # Update session state if engine changed
+    if selected_engine != st.session_state.current_engine_type:
+        st.session_state.current_engine_type = selected_engine
+        st.rerun()
+
+    # Show engine info
+    try:
+        engine_info = get_engine_info(selected_engine)
+        with st.expander("ℹ️ Engine Details", expanded=False):
+            st.markdown(f"**Model:** {engine_info['model_size']}")
+            st.markdown(f"**Languages:** {', '.join(engine_info['languages'])}")
+            st.markdown(f"**Voices:** {engine_info['voice_count']}")
+            st.markdown(f"**Speed:** {engine_info['speed']}")
+    except Exception as e:
+        st.warning(f"Could not load engine info: {str(e)}")
 
     st.markdown("---")
 
     # Engine Status
     st.markdown("### ⚙️ Engine Status")
 
-    if st.session_state.engine:
-        st.success("✅ Engine Ready")
+    current_engine_type = st.session_state.current_engine_type
+    is_loaded = current_engine_type in st.session_state.engine_cache
+
+    if is_loaded:
+        st.success(f"✅ {current_engine_type.upper()} Engine Ready")
         if st.button("🔄 Reload Engine", width="stretch"):
-            st.session_state.engine = None
-            initialize_engine()
+            # Clear current engine from cache to force reload
+            if current_engine_type in st.session_state.engine_cache:
+                del st.session_state.engine_cache[current_engine_type]
             st.rerun()
     else:
-        st.warning("⏳ Engine Not Initialized")
-        if st.button("🚀 Initialize Engine", width="stretch"):
-            initialize_engine()
+        st.info(f"⏳ {current_engine_type.upper()} Engine Not Loaded")
+        if st.button("🚀 Load Engine", width="stretch"):
+            get_current_engine()  # This will load and cache the engine
             st.rerun()
 
     st.markdown("---")
@@ -484,12 +534,39 @@ with tab1:
     with col2:
         st.markdown("### Settings")
 
+        # Get appropriate voice list based on selected engine
+        current_engine = st.session_state.current_engine_type
+        if current_engine == "indic":
+            # For Indic engine, show Hindi voices
+            from aparsoft_tts.core.engine_indic_parler import (
+                HINDI_VOICES,
+                ALL_INDIC_VOICES,
+                EMOTIONS,
+            )
+
+            voice_options = ALL_INDIC_VOICES
+            default_voice = "rohit"
+        elif current_engine == "openvoice":
+            # OpenVoice uses reference audio, but we can show base speakers
+            voice_options = ["default"]
+            default_voice = "default"
+        else:  # kokoro
+            voice_options = ALL_VOICES
+            default_voice = "am_michael"
+
         voice = st.selectbox(
             "Voice",
-            options=ALL_VOICES,
-            index=ALL_VOICES.index("am_michael"),
-            help="Select the voice for generation",
+            options=voice_options,
+            index=voice_options.index(default_voice) if default_voice in voice_options else 0,
+            help=f"Select the voice for generation ({current_engine} engine)",
         )
+
+        # Emotion selector for Indic engine
+        emotion = None
+        if current_engine == "indic":
+            emotion = st.selectbox(
+                "Emotion", options=EMOTIONS, index=0, help="Emotion/style for the generated speech"
+            )
 
         speed = st.slider(
             "Speed",
@@ -523,7 +600,7 @@ with tab1:
     if text_input:
         with st.expander("📊 Token Analysis & Quality Check"):
             try:
-                engine = get_engine()
+                engine = get_current_engine()
                 if engine:
                     token_count = engine._count_tokens(text_input)
                     chunks = engine._chunk_text_smart(text_input)
@@ -568,7 +645,7 @@ with tab1:
             st.error("❌ Please enter some text to convert")
         else:
             try:
-                engine = get_engine()
+                engine = get_current_engine()
 
                 if engine:
                     output_dir = Path("outputs/single")
@@ -582,13 +659,20 @@ with tab1:
                         temp_config = engine.config
                         temp_config.output_format = output_format
 
-                        result_path = engine.generate(
-                            text=text_input,
-                            output_path=str(output_path),
-                            voice=voice,
-                            speed=speed,
-                            enhance=enhance,
-                        )
+                        # Prepare generation parameters
+                        gen_params = {
+                            "text": text_input,
+                            "output_path": str(output_path),
+                            "voice": voice,
+                            "speed": speed,
+                            "enhance": enhance,
+                        }
+
+                        # Add emotion parameter for Indic engine
+                        if current_engine == "indic" and emotion:
+                            gen_params["emotion"] = emotion
+
+                        result_path = engine.generate(**gen_params)
 
                         generation_time = time.time() - start_time
 
@@ -598,19 +682,24 @@ with tab1:
                     file_size = result_path.stat().st_size
 
                     # Add to history
-                    add_to_history(
-                        {
-                            "type": "single",
-                            "text_length": len(text_input),
-                            "voice": voice,
-                            "speed": speed,
-                            "enhance": enhance,
-                            "duration": duration,
-                            "file_size": file_size,
-                            "generation_time": generation_time,
-                            "output_path": str(result_path),
-                        }
-                    )
+                    history_entry = {
+                        "type": "single",
+                        "engine": current_engine,
+                        "text_length": len(text_input),
+                        "voice": voice,
+                        "speed": speed,
+                        "enhance": enhance,
+                        "duration": duration,
+                        "file_size": file_size,
+                        "generation_time": generation_time,
+                        "output_path": str(result_path),
+                    }
+
+                    # Add emotion for Indic engine
+                    if current_engine == "indic" and emotion:
+                        history_entry["emotion"] = emotion
+
+                    add_to_history(history_entry)
 
                     # Success message
                     st.success("✅ Speech generated successfully!")
@@ -685,9 +774,45 @@ with tab2:
     with col2:
         st.markdown("### Settings")
 
+        # Get appropriate voice list based on selected engine
+        current_engine = st.session_state.current_engine_type
+        if current_engine == "indic":
+            from aparsoft_tts.core.engine_indic_parler import (
+                HINDI_VOICES,
+                ALL_INDIC_VOICES,
+                EMOTIONS,
+            )
+
+            batch_voice_options = ALL_INDIC_VOICES
+            batch_default_voice = "rohit"
+        elif current_engine == "openvoice":
+            batch_voice_options = ["default"]
+            batch_default_voice = "default"
+        else:  # kokoro
+            batch_voice_options = ALL_VOICES
+            batch_default_voice = "am_michael"
+
         batch_voice = st.selectbox(
-            "Voice", options=ALL_VOICES, index=ALL_VOICES.index("am_michael"), key="batch_voice"
+            "Voice",
+            options=batch_voice_options,
+            index=(
+                batch_voice_options.index(batch_default_voice)
+                if batch_default_voice in batch_voice_options
+                else 0
+            ),
+            key="batch_voice",
         )
+
+        # Emotion selector for Indic engine
+        batch_emotion = None
+        if current_engine == "indic":
+            batch_emotion = st.selectbox(
+                "Emotion",
+                options=EMOTIONS,
+                index=0,
+                key="batch_emotion",
+                help="Emotion/style for the generated speech",
+            )
 
         batch_speed = st.slider(
             "Speed", min_value=0.5, max_value=2.0, value=1.0, step=0.1, key="batch_speed"
@@ -702,7 +827,7 @@ with tab2:
             st.error("❌ No texts to process")
         else:
             try:
-                engine = get_engine()
+                engine = get_current_engine()
 
                 if engine:
                     output_dir = Path("outputs/batch") / datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -721,13 +846,20 @@ with tab2:
 
                         output_file = output_dir / f"{filename_prefix}_{i+1:03d}.wav"
 
-                        engine.generate(
-                            text=text,
-                            output_path=str(output_file),
-                            voice=batch_voice,
-                            speed=batch_speed,
-                            enhance=True,
-                        )
+                        # Prepare generation parameters
+                        gen_params = {
+                            "text": text,
+                            "output_path": str(output_file),
+                            "voice": batch_voice,
+                            "speed": batch_speed,
+                            "enhance": True,
+                        }
+
+                        # Add emotion parameter for Indic engine
+                        if current_engine == "indic" and batch_emotion:
+                            gen_params["emotion"] = batch_emotion
+
+                        engine.generate(**gen_params)
 
                         # Get duration
                         audio, sr = sf.read(str(output_file))
@@ -826,9 +958,45 @@ with tab3:
     with col2:
         st.markdown("### Settings")
 
+        # Get appropriate voice list based on selected engine
+        current_engine = st.session_state.current_engine_type
+        if current_engine == "indic":
+            from aparsoft_tts.core.engine_indic_parler import (
+                HINDI_VOICES,
+                ALL_INDIC_VOICES,
+                EMOTIONS,
+            )
+
+            script_voice_options = ALL_INDIC_VOICES
+            script_default_voice = "rohit"
+        elif current_engine == "openvoice":
+            script_voice_options = ["default"]
+            script_default_voice = "default"
+        else:  # kokoro
+            script_voice_options = ALL_VOICES
+            script_default_voice = "am_michael"
+
         script_voice = st.selectbox(
-            "Voice", options=ALL_VOICES, index=ALL_VOICES.index("am_michael"), key="script_voice"
+            "Voice",
+            options=script_voice_options,
+            index=(
+                script_voice_options.index(script_default_voice)
+                if script_default_voice in script_voice_options
+                else 0
+            ),
+            key="script_voice",
         )
+
+        # Emotion selector for Indic engine
+        script_emotion = None
+        if current_engine == "indic":
+            script_emotion = st.selectbox(
+                "Emotion",
+                options=EMOTIONS,
+                index=0,
+                key="script_emotion",
+                help="Emotion/style for the generated speech",
+            )
 
         script_speed = st.slider(
             "Speed", min_value=0.5, max_value=2.0, value=1.0, step=0.1, key="script_speed"
@@ -861,7 +1029,7 @@ with tab3:
     if script_text:
         with st.expander("📊 Script Token Analysis"):
             try:
-                engine = get_engine()
+                engine = get_current_engine()
                 if engine:
                     token_count = engine._count_tokens(script_text)
                     chunks = engine._chunk_text_smart(script_text)
@@ -892,7 +1060,7 @@ with tab3:
             st.error("❌ Please provide a script")
         else:
             try:
-                engine = get_engine()
+                engine = get_current_engine()
 
                 if engine:
                     # Save script temporarily
@@ -914,13 +1082,20 @@ with tab3:
                         temp_config = engine.config
                         temp_config.output_format = script_output_format
 
-                        result_path = engine.process_script(
-                            script_path=str(script_path),
-                            output_path=str(output_path),
-                            gap_duration=gap_duration,
-                            voice=script_voice,
-                            speed=script_speed,
-                        )
+                        # Prepare generation parameters
+                        gen_params = {
+                            "script_path": str(script_path),
+                            "output_path": str(output_path),
+                            "gap_duration": gap_duration,
+                            "voice": script_voice,
+                            "speed": script_speed,
+                        }
+
+                        # Add emotion parameter for Indic engine
+                        if current_engine == "indic" and script_emotion:
+                            gen_params["emotion"] = script_emotion
+
+                        result_path = engine.process_script(**gen_params)
 
                         generation_time = time.time() - start_time
 
@@ -1267,7 +1442,7 @@ with tab4:
             st.error("❌ No segments with text. Please add content to at least one segment.")
         else:
             try:
-                engine = get_engine()
+                engine = get_current_engine()
 
                 if engine:
                     output_dir = Path("outputs/podcasts")
@@ -1663,7 +1838,7 @@ with tab6:
             st.error("❌ Please enter text for comparison")
         else:
             try:
-                engine = get_engine()
+                engine = get_current_engine()
 
                 if engine:
                     output_dir = Path("outputs/voice_comparison")
@@ -1750,7 +1925,7 @@ with tab6:
 
                 if st.button(f"Generate Sample", key=f"male_{voice}"):
                     try:
-                        engine = get_engine()
+                        engine = get_current_engine()
 
                         if engine:
                             output_dir = Path("outputs/voice_samples")
@@ -1792,7 +1967,7 @@ with tab6:
 
                 if st.button(f"Generate Sample", key=f"female_{voice}"):
                     try:
-                        engine = get_engine()
+                        engine = get_current_engine()
 
                         if engine:
                             output_dir = Path("outputs/voice_samples")
@@ -2075,11 +2250,10 @@ with tab8:
             with open(config_file, "w") as f:
                 f.write(custom_config.model_dump_json(indent=2))
 
-            # Reinitialize engine with new config
-            st.session_state.engine = None
-            initialize_engine(custom_config)
+            # Clear engine cache to force reload with new config
+            st.session_state.engine_cache.clear()
 
-            st.success("✅ Configuration saved and engine reloaded!")
+            st.success("✅ Configuration saved! Engines will reload with new settings on next use.")
 
         except Exception as e:
             # Show detailed error with full traceback

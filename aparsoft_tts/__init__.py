@@ -1,8 +1,8 @@
 # aparsoft_tts/__init__.py
 
-"""Aparsoft TTS - Comprehensive Text-to-Speech with Dual Engines.
+"""Aparsoft TTS - Comprehensive Text-to-Speech with THREE powerful engines.
 
-This package provides a comprehensive TTS solution with TWO powerful engines:
+This package provides a comprehensive TTS solution with THREE engines:
 
 1. **Kokoro TTS** (Default): Fast, high-quality English TTS
    - 11 professional voices (male/female, US/UK)
@@ -14,13 +14,28 @@ This package provides a comprehensive TTS solution with TWO powerful engines:
    - 6 languages: EN, ES, FR, ZH, JA, KO
    - Cross-lingual capability
 
+3. **Indic Parler-TTS**: Professional Indian language TTS
+   - 21 Indic languages (Hindi, Bengali, Tamil, etc.)
+   - 69 professional voices
+   - Hindi quality: 83.43 MOS
+   - Emotion control (10 emotions)
+
 Basic Usage (Kokoro):
     >>> from aparsoft_tts import TTSEngine
     >>> engine = TTSEngine()
     >>> engine.generate("Hello world", "output.wav")
 
-OpenVoice Usage:
+Indic Usage:
     >>> from aparsoft_tts import get_tts_engine
+    >>> engine = get_tts_engine("indic")
+    >>> engine.generate(
+    ...     "नमस्ते दोस्तों!",
+    ...     "output.wav",
+    ...     voice="divya",
+    ...     emotion="happy"
+    ... )
+
+OpenVoice Usage:
     >>> engine = get_tts_engine("openvoice")
     >>> engine.generate_with_cloning(
     ...     "Your text",
@@ -30,7 +45,7 @@ OpenVoice Usage:
 
 Factory Pattern:
     >>> from aparsoft_tts import get_tts_engine
-    >>> # Uses ENGINE env var or config
+    >>> # Uses ENGINE env var or config (kokoro/openvoice/indic)
     >>> engine = get_tts_engine()
 """
 

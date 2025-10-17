@@ -1,11 +1,37 @@
 # Aparsoft TTS - Streamlit Management Interface
 
-An enterprise-grade web interface for managing Aparsoft TTS functionality.
+An enterprise-grade web interface for managing Aparsoft TTS functionality with **multi-engine support**.
+
+## 🚀 Multi-Engine Support
+
+Choose from three powerful TTS engines:
+
+### 🚀 Kokoro (Fast English)
+- **Model**: 82M parameters
+- **Languages**: English (primary), Hindi (Grade C - 4 voices)
+- **Speed**: ⚡ Very Fast (~0.5s per second of audio)
+- **Best for**: Quick English content, tutorials, drafts
+
+### �🇳 Indic Parler-TTS (Professional Hindi)
+- **Model**: 900M parameters (AI4Bharat)
+- **Languages**: 21 Indic languages (Hindi, Bengali, Tamil, Telugu, etc.)
+- **Quality**: 🏆 83.43 MOS for Hindi (professional grade)
+- **Voices**: 69 unique voices across languages
+- **Emotions**: 10 emotions (neutral, happy, sad, angry, narration, etc.)
+- **Best for**: Hindi podcasts, educational content, professional voiceovers
+
+### 🎭 OpenVoice V2 (Voice Cloning)
+- **Model**: Multi-lingual voice cloning
+- **Languages**: English, Spanish, French, Chinese, Japanese, Korean
+- **Feature**: Clone any voice from 3-second reference audio
+- **Best for**: Custom voice matching, character voices, brand consistency
 
 ## Features
 
-### 🎯 Single Generation
+### �🎯 Single Generation
 - Convert text to speech with real-time preview
+- **Engine selection** - Choose Kokoro, Indic, or OpenVoice
+- **Emotion control** - 10 emotions for Indic engine
 - Customizable voice, speed, and enhancement settings
 - Instant audio playback and download
 - Detailed generation metrics
@@ -49,8 +75,22 @@ An enterprise-grade web interface for managing Aparsoft TTS functionality.
 # Navigate to project directory
 cd /path/to/youtube-creator
 
-# Install dependencies
+# Install base dependencies
 pip install streamlit plotly pandas
+
+# Install with specific engines (choose one):
+
+# Option 1: Kokoro only (fastest, smallest)
+pip install -e .
+
+# Option 2: With Indic engine (professional Hindi)
+pip install -e ".[indic]"
+
+# Option 3: With OpenVoice (voice cloning)
+pip install -e ".[openvoice]"
+
+# Option 4: All engines (complete installation)
+pip install -e ".[complete]"
 
 # Run the app
 streamlit run streamlit_app.py
@@ -70,11 +110,19 @@ chmod +x run_streamlit.sh
 
 ### 1. Single Speech Generation
 
-1. Navigate to the "Single Generation" tab
-2. Enter your text (up to 10,000 characters)
-3. Select voice, speed, and enhancement options
-4. Click "Generate Speech"
-5. Preview audio and download
+1. **Select Engine** in sidebar (Kokoro/Indic/OpenVoice)
+2. Navigate to the "Single Generation" tab
+3. Enter your text (up to 10,000 characters)
+4. Select voice from available voices for chosen engine
+5. **(Indic only)** Select emotion (neutral, happy, sad, etc.)
+6. Configure speed and enhancement options
+7. Click "Generate Speech"
+8. Preview audio and download
+
+**Engine-specific tips:**
+- **Kokoro**: Best for English, use `am_michael` for professional sound
+- **Indic**: Best for Hindi, use `rohit` (male) or `divya` (female), select emotion
+- **OpenVoice**: Upload reference audio for voice cloning
 
 ### 2. Batch Processing
 
@@ -143,6 +191,8 @@ The app includes professional audio processing:
 
 ### Voice Options
 
+**Kokoro Engine - English Voices:**
+
 **Male Voices:**
 - `am_adam` - American, natural inflection
 - `am_michael` - American, professional (⭐ recommended)
@@ -156,6 +206,31 @@ The app includes professional audio processing:
 - `af_sky` - American, youthful
 - `bf_emma` - British, professional
 - `bf_isabella` - British, gentle
+
+**Indic Engine - Hindi Voices (Recommended):**
+- `rohit` - Male, clear and professional
+- `divya` - Female, warm and engaging
+- `aman` - Male, energetic
+- `rani` - Female, authoritative
+
+**Plus 65+ voices for 20 other Indic languages!**
+
+**Indic Emotions:**
+- `neutral` - Standard delivery
+- `happy` - Upbeat and cheerful
+- `sad` - Melancholic tone
+- `angry` - Strong and intense
+- `narration` - Storytelling style
+- `conversation` - Natural dialogue
+- `command` - Authoritative
+- `disgust` - Negative emotion
+- `fear` - Anxious tone
+- `surprise` - Excited and amazed
+
+**OpenVoice Engine:**
+- Uses reference audio for voice cloning
+- Can match any voice from 3+ seconds of audio
+- Supports multiple languages
 
 ### Generation Metrics
 
@@ -240,25 +315,50 @@ streamlit run streamlit_app.py --server.headless=false
 
 ## Advanced Features
 
+### Engine Selection & Lazy Loading
+
+The app uses **lazy loading** - engines are loaded only when first used:
+
+1. Select engine in sidebar
+2. Engine loads on first generation
+3. Only one engine in memory at a time
+4. Switch engines anytime (previous engine unloads)
+
+**Memory efficiency:**
+- Kokoro: ~200MB
+- Indic: ~2GB (loaded only when selected)
+- OpenVoice: ~1GB (loaded only when selected)
+
 ### Custom Configuration
 
 Save custom configurations for different use cases:
 
 ```python
-# YouTube Tutorial Config
+# YouTube Tutorial Config (Kokoro)
 {
+  "engine": "kokoro",
   "voice": "am_michael",
   "speed": 1.0,
   "enhance_audio": true,
   "sample_rate": 24000
 }
 
-# Podcast Config
+# Hindi Podcast Config (Indic)
 {
-  "voice": "af_bella",
+  "engine": "indic",
+  "voice": "divya",
+  "emotion": "narration",
   "speed": 0.95,
   "enhance_audio": true,
   "sample_rate": 44100
+}
+
+# Custom Voice Config (OpenVoice)
+{
+  "engine": "openvoice",
+  "reference_audio": "path/to/reference.wav",
+  "speed": 1.0,
+  "enhance_audio": true
 }
 ```
 
@@ -286,10 +386,38 @@ Conclusion and call to action here.
 
 ## Performance Tips
 
+### Engine-Specific Tips
+
+**Kokoro (English):**
+1. **For Quick Drafts**: Speed 1.3x, no enhancement
+2. **For Production**: Speed 1.0x, enable enhancement
+3. **Best Voice**: `am_michael` for professional content
+
+**Indic (Hindi):**
+1. **For Podcasts**: Use `divya` voice, `narration` emotion, speed 0.95x
+2. **For Education**: Use `rohit` voice, `neutral` emotion, speed 0.9x
+3. **For Entertainment**: Use `happy` or `surprise` emotions
+4. **Quality**: Always enable enhancement for production
+
+**OpenVoice (Cloning):**
+1. **Reference Audio**: Use 3-10 seconds, clear recording
+2. **Best Results**: Studio-quality reference gives best clones
+3. **Speed**: Adjust based on reference voice characteristics
+
+### General Performance
+
 1. **For Quick Drafts**: Disable enhancement, use speed 1.3x
 2. **For Production**: Enable enhancement, use speed 1.0x
 3. **For Learning Content**: Use speed 0.9x, enable enhancement
 4. **For Batch Jobs**: Process during off-hours, use batch processing
+
+### Memory Management
+
+- Only one engine loads at a time (lazy loading)
+- Switching engines clears previous engine from memory
+- Kokoro: Fastest loading (~2s)
+- Indic: Slower loading (~10-15s first time)
+- OpenVoice: Medium loading (~5-7s)
 
 ## Security
 

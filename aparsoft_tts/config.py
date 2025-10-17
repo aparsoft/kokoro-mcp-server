@@ -203,9 +203,9 @@ class Config(BaseSettings):
     debug: bool = Field(default=False, description="Enable debug mode")
 
     # Engine Selection
-    engine: Literal["kokoro", "openvoice"] = Field(
+    engine: Literal["kokoro", "openvoice", "indic"] = Field(
         default="kokoro",
-        description="TTS engine to use: 'kokoro' (fast, English) or 'openvoice' (cloning, multilingual)",
+        description="TTS engine to use: 'kokoro' (fast, English), 'openvoice' (cloning, multilingual), or 'indic' (Indian languages)",
     )
 
     # Sub-configurations

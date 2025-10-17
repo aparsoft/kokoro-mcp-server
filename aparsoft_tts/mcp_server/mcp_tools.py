@@ -36,7 +36,13 @@ from aparsoft_tts.mcp_server.mcp_server_main import (
 # Suppress all warnings to prevent non-JSON output in MCP
 warnings.filterwarnings("ignore")
 
-from aparsoft_tts.core.engine import ALL_VOICES, FEMALE_VOICES, MALE_VOICES, HINDI_MALE_VOICES, HINDI_FEMALE_VOICES
+from aparsoft_tts.core.engine import (
+    ALL_VOICES,
+    FEMALE_VOICES,
+    MALE_VOICES,
+    HINDI_MALE_VOICES,
+    HINDI_FEMALE_VOICES,
+)
 from aparsoft_tts.utils.exceptions import AparsoftTTSError
 from aparsoft_tts.utils.logging import bind_context, get_logger
 
@@ -104,20 +110,23 @@ def normalize_path(path_str: str) -> Path:
 
 @mcp.tool()
 async def generate_speech(request: GenerateSpeechRequest) -> str:
-    """Generate high-quality speech from text using Kokoro TTS.
+    """Generate high-quality speech from text using TTS engine.
 
     This tool converts text to natural-sounding speech with professional
-    audio enhancement. Perfect for creating YouTube voiceovers, podcasts,
-    and other audio content.
+    audio enhancement. Supports three engines:
+    - kokoro: Fast, high-quality English TTS (82M params)
+    - openvoice: Voice cloning and multilingual (6 languages)
+    - indic: Professional Indic languages TTS (21 languages, 83.43 MOS for Hindi)
 
     Features:
-    - Multiple voice options (male/female, American/British)
+    - Multiple voice options per engine
     - Adjustable speech speed
     - Automatic audio enhancement (noise reduction, normalization)
+    - Emotion control for Indic engine (happy, sad, angry, etc.)
     - Production-quality output
 
     Args:
-        request: Speech generation parameters
+        request: Speech generation parameters including engine selection
 
     Returns:
         Success message with file details
@@ -126,6 +135,7 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         >>> await generate_speech(GenerateSpeechRequest(
         ...     text="Welcome to our channel",
         ...     voice="am_michael",
+        ...     engine="kokoro",
         ...     output_file="intro.wav"
         ... ))
     """
@@ -133,6 +143,7 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         # Bind request context for logging
         bind_context(
             operation="generate_speech",
+            engine=request.engine,
             voice=request.voice,
             text_length=len(request.text),
         )
@@ -152,22 +163,26 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
 
         log.info(
             "mcp_generate_speech_request",
+            engine=request.engine,
             voice=request.voice,
             speed=request.speed,
             enhance=request.enhance,
+            emotion=request.emotion,
             output_file=output_file_abs,
         )
 
-        # Get TTS engine (lazy loaded on first use)
-        engine = get_tts_engine()
+        # Get TTS engine for the requested engine type (lazy loaded on first use)
+        engine = get_tts_engine(request.engine)
 
         # Generate speech with absolute path
+        # For Indic engine, emotion will be used; for others, it will be ignored
         output_path = engine.generate(
             text=request.text,
             output_path=output_file_abs,
             voice=request.voice,
             speed=request.speed,
             enhance=request.enhance,
+            emotion=request.emotion if request.engine == "indic" else None,
         )
 
         # Get file size and actual path
@@ -177,18 +192,22 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
 
         log.info(
             "mcp_generate_speech_success",
+            engine=request.engine,
             output_file=str(actual_path),
             size_bytes=file_size,
         )
+
+        emotion_info = f"Emotion: {request.emotion}\n" if request.engine == "indic" else ""
 
         return f"""✅ Speech generated successfully!
 
 📁 FULL PATH: {actual_path}
 
+Engine: {request.engine}
 File: {actual_path.name}
 Voice: {request.voice}
 Speed: {request.speed}x
-Enhanced: {request.enhance}
+{emotion_info}Enhanced: {request.enhance}
 Size: {file_size / 1024:.1f} KB
 Estimated Duration: {duration:.1f}s
 
@@ -204,13 +223,18 @@ The audio file has been saved and is ready to use."""
 
 @mcp.tool()
 async def list_voices() -> str:
-    """List all available TTS voices.
+    """List all available TTS voices across all engines.
 
     Returns detailed information about available voices organized by
-    gender and accent.
+    engine, gender, and accent/language.
+
+    Engines:
+    - kokoro: English voices (male/female, American/British, Hindi basic support)
+    - openvoice: Voice cloning, multilingual (6 languages)
+    - indic: Professional Indic languages (21 languages, 69 voices, Hindi native)
 
     Returns:
-        Formatted list of available voices
+        Formatted list of available voices for all engines
 
     Example:
         >>> await list_voices()
@@ -218,35 +242,81 @@ async def list_voices() -> str:
     try:
         log.info("mcp_list_voices_request")
 
-        # Get TTS engine (lazy loaded on first use)
-        engine = get_tts_engine()
-        voices = engine.list_voices()
+        # Get Kokoro engine voices (default engine)
+        kokoro_engine = get_tts_engine("kokoro")
+        kokoro_voices = kokoro_engine.list_voices()
 
-        result = """🎤 Available Voices
+        result = """🎤 Available Voices - All Engines
+
+═══════════════════════════════════════════════════════════════
+🚀 KOKORO ENGINE (Fast, High-Quality English)
+═══════════════════════════════════════════════════════════════
 
 **English Male Voices (Professional, Clear):**
 """
-        for voice in voices["male"]:
+        for voice in kokoro_voices["male"]:
             accent = "American" if voice.startswith("am_") else "British"
             result += f"  • {voice} - {accent} male\n"
 
         result += "\n**English Female Voices (Warm, Expressive):**\n"
-        for voice in voices["female"]:
+        for voice in kokoro_voices["female"]:
             accent = "American" if voice.startswith("af_") else "British"
             result += f"  • {voice} - {accent} female\n"
 
-        result += "\n**🇮🇳 Hindi Male Voices:**\n"
-        for voice in voices["hindi_male"]:
+        result += "\n**🇮🇳 Hindi Voices (Basic Support, Grade C):**\n"
+        for voice in kokoro_voices["hindi_male"]:
             result += f"  • {voice} - Hindi male\n"
-
-        result += "\n**🇮🇳 Hindi Female Voices:**\n"
-        for voice in voices["hindi_female"]:
+        for voice in kokoro_voices["hindi_female"]:
             result += f"  • {voice} - Hindi female\n"
 
-        result += f"\n**Recommended for YouTube (English):** am_michael (professional, clear)\n"
-        result += f"**Recommended for Hindi:** hf_alpha (female), hm_omega (male)\n"
-        result += f"**Total Voices:** {len(MALE_VOICES) + len(FEMALE_VOICES) + len(HINDI_MALE_VOICES) + len(HINDI_FEMALE_VOICES)}\n"
-        result += f"\n**Note:** Hindi voices require espeak-ng with Hindi support installed.\n"
+        result += """
+═══════════════════════════════════════════════════════════════
+🎭 OPENVOICE ENGINE (Voice Cloning, Multilingual)
+═══════════════════════════════════════════════════════════════
+
+**Supported Languages:** English, Spanish, French, Chinese, Japanese, Korean
+**Base Voices:** en_default, en_us, en_au, en_uk, es, fr, zh, ja, ko
+**Feature:** Clone any voice from a 5-10 second sample
+**Note:** No native Hindi support (use Indic engine for Hindi)
+
+═══════════════════════════════════════════════════════════════
+🇮🇳 INDIC ENGINE (Professional Indic Languages - MOS 83.43)
+═══════════════════════════════════════════════════════════════
+
+**🔥 RECOMMENDED FOR HINDI CONTENT**
+
+**Hindi Male Voices (Professional Quality):**
+  • madhav - Professional narrator, clear
+  • arnav - Warm, conversational
+  • megh - Storyteller, expressive
+
+**Hindi Female Voices (Professional Quality):**
+  • divya - Elegant, professional
+  • priya - Warm, approachable  
+  • ananya - Energetic, youthful
+
+**Supported Languages (21 Total):**
+Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam,
+Odia, Punjabi, Assamese, Manipuri, Sanskrit, Urdu, Bodo, Dogri, 
+Konkani, Maithili, Nepali, Santali, Sindhi
+
+**Emotion Controls:** neutral, happy, sad, angry, fearful, disgusted, surprised
+
+**Total Voices:** 69 professional voices across all Indic languages
+
+═══════════════════════════════════════════════════════════════
+📋 RECOMMENDATIONS BY USE CASE
+═══════════════════════════════════════════════════════════════
+
+**English YouTube Videos:** kokoro engine, am_michael (professional, clear)
+**Hindi Content:** indic engine, divya (female) or madhav (male)
+**Voice Cloning:** openvoice engine with reference audio sample
+**Podcast (English):** kokoro engine, mixed voices (am_michael + af_sarah)
+**Podcast (Hindi):** indic engine, mixed voices (divya + arnav)
+**Multilingual (no Hindi):** openvoice engine
+
+**Note:** Only ONE engine loads to memory at a time for efficiency.
+"""
 
         log.info("mcp_list_voices_success")
         return result
@@ -258,13 +328,15 @@ async def list_voices() -> str:
 
 @mcp.tool()
 async def batch_generate(request: BatchGenerateRequest) -> str:
-    """Generate multiple audio files from a list of texts.
+    """Generate multiple audio files from a list of texts using selected engine.
 
     Useful for creating multiple voiceover segments for a video project.
     Each text is saved as a separate audio file in the specified directory.
 
+    Supports all three engines (kokoro, openvoice, indic).
+
     Args:
-        request: Batch generation parameters
+        request: Batch generation parameters including engine selection
 
     Returns:
         Summary of generated files
@@ -272,11 +344,16 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
     Example:
         >>> await batch_generate(BatchGenerateRequest(
         ...     texts=["Intro", "Main content", "Outro"],
-        ...     output_dir="segments/"
+        ...     output_dir="segments/",
+        ...     engine="kokoro"
         ... ))
     """
     try:
-        bind_context(operation="batch_generate", num_texts=len(request.texts))
+        bind_context(
+            operation="batch_generate",
+            engine=request.engine,
+            num_texts=len(request.texts),
+        )
 
         # Normalize and convert to absolute path
         output_dir_path = normalize_path(request.output_dir)
@@ -287,18 +364,20 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
 
         log.info(
             "mcp_batch_generate_request",
+            engine=request.engine,
             num_texts=len(request.texts),
             output_dir=output_dir_abs,
         )
 
-        # Get TTS engine (lazy loaded on first use)
-        engine = get_tts_engine()
+        # Get TTS engine for the requested engine type (lazy loaded on first use)
+        engine = get_tts_engine(request.engine)
 
         paths = engine.batch_generate(
             texts=request.texts,
             output_dir=output_dir_abs,
             voice=request.voice,
             speed=request.speed,
+            emotion=request.emotion if request.engine == "indic" else None,
         )
 
         result = f"""✅ Batch generation completed!
@@ -310,10 +389,13 @@ Generated {len(paths)} audio files:
             size = abs_path.stat().st_size
             result += f"  {i}. {abs_path} ({size / 1024:.1f} KB)\n"
 
-        result += f"\n📁 OUTPUT DIRECTORY: {output_dir_path.resolve()}\n"
-        result += f"Voice: {request.voice}\n"
+        emotion_info = f"\nEmotion: {request.emotion}" if request.engine == "indic" else ""
 
-        log.info("mcp_batch_generate_success", num_files=len(paths))
+        result += f"\n📁 OUTPUT DIRECTORY: {output_dir_path.resolve()}\n"
+        result += f"Engine: {request.engine}\n"
+        result += f"Voice: {request.voice}{emotion_info}\n"
+
+        log.info("mcp_batch_generate_success", engine=request.engine, num_files=len(paths))
         return result
 
     except AparsoftTTSError as e:
@@ -326,14 +408,16 @@ Generated {len(paths)} audio files:
 
 @mcp.tool()
 async def process_script(request: ProcessScriptRequest) -> str:
-    """Process a complete video script file.
+    """Process a complete video script file using selected engine.
 
     Reads a text file, splits it by paragraphs, generates audio for each segment,
     and combines them with gaps into a single voiceover file. Perfect for
     creating complete YouTube video voiceovers.
 
+    Supports all three engines (kokoro, openvoice, indic).
+
     Args:
-        request: Script processing parameters
+        request: Script processing parameters including engine selection
 
     Returns:
         Summary of processed script
@@ -341,11 +425,17 @@ async def process_script(request: ProcessScriptRequest) -> str:
     Example:
         >>> await process_script(ProcessScriptRequest(
         ...     script_path="my_video_script.txt",
-        ...     output_path="complete_voiceover.wav"
+        ...     output_path="complete_voiceover.wav",
+        ...     engine="indic",
+        ...     voice="divya"
         ... ))
     """
     try:
-        bind_context(operation="process_script", script_path=request.script_path)
+        bind_context(
+            operation="process_script",
+            engine=request.engine,
+            script_path=request.script_path,
+        )
 
         # Normalize and convert script path to absolute
         script_path_input = normalize_path(request.script_path)
@@ -364,12 +454,13 @@ async def process_script(request: ProcessScriptRequest) -> str:
 
         log.info(
             "mcp_process_script_request",
+            engine=request.engine,
             script_path=script_path_abs,
             output_path=output_path_abs,
         )
 
-        # Get TTS engine (lazy loaded on first use)
-        engine = get_tts_engine()
+        # Get TTS engine for the requested engine type (lazy loaded on first use)
+        engine = get_tts_engine(request.engine)
 
         output_path = engine.process_script(
             script_path=script_path_abs,
@@ -377,24 +468,28 @@ async def process_script(request: ProcessScriptRequest) -> str:
             gap_duration=request.gap_duration,
             voice=request.voice,
             speed=request.speed,
+            emotion=request.emotion if request.engine == "indic" else None,
         )
 
         actual_path = Path(output_path).resolve()
         file_size = actual_path.stat().st_size
 
+        emotion_info = f"\nEmotion: {request.emotion}" if request.engine == "indic" else ""
+
         result = f"""✅ Script processed successfully!
 
 📁 FULL PATH: {actual_path}
 
+Engine: {request.engine}
 Output: {actual_path.name}
 Size: {file_size / 1024 / 1024:.2f} MB
 Voice: {request.voice}
-Speed: {request.speed}x
+Speed: {request.speed}x{emotion_info}
 Gap between segments: {request.gap_duration}s
 
 Your complete voiceover is ready to use!"""
 
-        log.info("mcp_process_script_success", output_path=str(actual_path))
+        log.info("mcp_process_script_success", engine=request.engine, output_path=str(actual_path))
         return result
 
     except FileNotFoundError as e:
@@ -481,6 +576,7 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
         # Bind context for logging
         bind_context(
             operation="generate_podcast",
+            engine=request.engine,
             num_segments=len(request.segments),
             voices_used=list(set(seg.voice for seg in request.segments)),
         )
@@ -494,6 +590,7 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
 
         log.info(
             "mcp_generate_podcast_request",
+            engine=request.engine,
             num_segments=len(request.segments),
             gap_duration=gap_duration,
             enhance=request.enhance,
@@ -518,8 +615,8 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
         audio_segments = []
         segment_details = []
 
-        # Get TTS engine (lazy loaded on first use)
-        engine = get_tts_engine()
+        # Get TTS engine for the requested engine type (lazy loaded on first use)
+        engine = get_tts_engine(request.engine)
 
         for i, segment in enumerate(request.segments, 1):
             segment_name = segment.name or f"segment_{i}"
@@ -530,16 +627,19 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
                 segment_name=segment_name,
                 voice=segment.voice,
                 speed=segment.speed,
+                emotion=segment.emotion if request.engine == "indic" else None,
                 text_length=len(segment.text),
             )
 
             try:
                 # Generate audio for this segment
+                # For Indic engine, emotion will be used; for others, it will be ignored
                 audio = engine.generate(
                     text=segment.text,
                     voice=segment.voice,
                     speed=segment.speed,
                     enhance=request.enhance,
+                    emotion=segment.emotion if request.engine == "indic" else None,
                 )
 
                 # Ensure we have numpy array, not Path
@@ -554,16 +654,19 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
                 from aparsoft_tts.utils.audio import get_audio_duration
 
                 duration = get_audio_duration(audio, config.tts.sample_rate)
-                segment_details.append(
-                    {
-                        "name": segment_name,
-                        "voice": segment.voice,
-                        "speed": segment.speed,
-                        "duration": duration,
-                        "text_preview": segment.text[:50]
-                        + ("..." if len(segment.text) > 50 else ""),
-                    }
-                )
+                segment_detail = {
+                    "name": segment_name,
+                    "voice": segment.voice,
+                    "speed": segment.speed,
+                    "duration": duration,
+                    "text_preview": segment.text[:50] + ("..." if len(segment.text) > 50 else ""),
+                }
+
+                # Add emotion if using Indic engine
+                if request.engine == "indic":
+                    segment_detail["emotion"] = segment.emotion
+
+                segment_details.append(segment_detail)
 
                 log.info(
                     "mcp_generate_podcast_segment_complete",
@@ -613,6 +716,7 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
 📁 FULL PATH: {actual_path}
 
 📊 PODCAST DETAILS:
+Engine: {request.engine}
 Total Segments: {len(request.segments)}
 Total Duration: {total_duration:.1f}s ({total_duration / 60:.1f} min)
 File Size: {file_size / 1024 / 1024:.2f} MB
@@ -623,9 +727,10 @@ Audio Enhanced: {request.enhance}
 """
 
         for i, detail in enumerate(segment_details, 1):
+            emotion_info = f"\n     Emotion: {detail['emotion']}" if "emotion" in detail else ""
             result += f"""  {i}. {detail['name']}
      Voice: {detail['voice']}
-     Speed: {detail['speed']}x
+     Speed: {detail['speed']}x{emotion_info}
      Duration: {detail['duration']:.1f}s
      Text: "{detail['text_preview']}"
 
@@ -635,6 +740,7 @@ Audio Enhanced: {request.enhance}
 
         log.info(
             "mcp_generate_podcast_success",
+            engine=request.engine,
             output_path=str(actual_path),
             num_segments=len(request.segments),
             total_duration=total_duration,

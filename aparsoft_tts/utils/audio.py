@@ -360,7 +360,7 @@ def get_audio_duration(audio: NDArray[np.float32], sample_rate: int = 24000) -> 
 def transcribe_audio(
     audio_path: Path | str,
     output_path: Path | str | None = None,
-    model_size: str = "base",
+    model_size: str = "medium",
     language: str | None = None,
     task: str = "transcribe",
     device: str = "auto",
@@ -369,6 +369,7 @@ def transcribe_audio(
     vad_filter: bool = True,
     word_timestamps: bool = False,
     use_faster_whisper: bool = True,
+    initial_prompt: str | None = None,
 ) -> dict:
     """Transcribe audio file to text using faster-whisper or OpenAI Whisper.
 
@@ -398,7 +399,8 @@ def transcribe_audio(
                    - 'large', 'large-v2', 'large-v3': Best accuracy (~10GB RAM)
                    - 'turbo', 'large-v3-turbo': Fast with high accuracy (~6GB RAM)
                    - 'distil-large-v3': Compressed model (5.8x faster, 51% fewer params)
-        language: Language code (e.g., 'en', 'es', 'fr'). None = auto-detect
+        language: Language code (e.g., 'en', 'es', 'fr', 'hi'). None = auto-detect
+                 For Hindi, use 'hi' and set initial_prompt to force Devanagari script
         task: Task type: 'transcribe' (same language) or 'translate' (to English)
         device: Device to use: 'cpu', 'cuda', or 'auto' (default)
         compute_type: Computation type:
@@ -411,6 +413,10 @@ def transcribe_audio(
         vad_filter: Use Voice Activity Detection to filter silence (default: True)
         word_timestamps: Return word-level timestamps (default: False)
         use_faster_whisper: Use faster-whisper if True, else use openai-whisper (default: True)
+        initial_prompt: Text prompt to guide transcription style/script.
+                       For Hindi in Devanagari: "यह एक हिंदी वाक्य है।"
+                       For Urdu: "یہ ایک اردو جملہ ہے۔"
+                       This forces Whisper to use the desired script.
 
     Returns:
         Dictionary containing:
@@ -509,6 +515,11 @@ def transcribe_audio(
             # Transcribe with faster-whisper
             log.debug("transcribing_with_faster_whisper", file=str(audio_path))
 
+            # Auto-set initial prompt for Hindi to force Devanagari script
+            if language == "hi" and initial_prompt is None:
+                initial_prompt = "यह एक हिंदी वाक्य है। नमस्ते, आप कैसे हैं?"
+                log.debug("auto_set_hindi_devanagari_prompt")
+
             segments_generator, info = model.transcribe(
                 str(audio_path),
                 language=language,
@@ -516,6 +527,7 @@ def transcribe_audio(
                 beam_size=beam_size,
                 vad_filter=vad_filter,
                 word_timestamps=word_timestamps,
+                initial_prompt=initial_prompt,
             )
 
             # Convert generator to list to get all segments
@@ -590,8 +602,18 @@ def transcribe_audio(
                 model = whisper.load_model(model_size)
 
                 log.debug("transcribing_with_openai_whisper", file=str(audio_path))
+
+                # Auto-set initial prompt for Hindi to force Devanagari script
+                if language == "hi" and initial_prompt is None:
+                    initial_prompt = "यह एक हिंदी वाक्य है। नमस्ते, आप कैसे हैं?"
+                    log.debug("auto_set_hindi_devanagari_prompt")
+
                 openai_result = model.transcribe(
-                    str(audio_path), language=language, task=task, verbose=False
+                    str(audio_path),
+                    language=language,
+                    task=task,
+                    verbose=False,
+                    initial_prompt=initial_prompt,
                 )
             finally:
                 sys.stderr.close()
