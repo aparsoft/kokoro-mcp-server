@@ -127,11 +127,11 @@ if __name__ == "__main__":
     print("Aparsoft TTS - Usage Examples")
     print("=" * 60 + "\n")
 
-    # basic_example()
-    # custom_voice_example()
-    # batch_example()
-    # script_example()
-    # config_example()
+    basic_example()
+    custom_voice_example()
+    batch_example()
+    script_example()
+    config_example()
     streaming_example()
 
     print("=" * 60)

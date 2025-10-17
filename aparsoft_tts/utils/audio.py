@@ -363,12 +363,28 @@ def transcribe_audio(
     model_size: str = "base",
     language: str | None = None,
     task: str = "transcribe",
+    device: str = "auto",
+    compute_type: str = "default",
+    beam_size: int = 5,
+    vad_filter: bool = True,
+    word_timestamps: bool = False,
+    use_faster_whisper: bool = True,
 ) -> dict:
-    """Transcribe audio file to text using OpenAI Whisper.
+    """Transcribe audio file to text using faster-whisper or OpenAI Whisper.
 
-    This function uses OpenAI's Whisper model for speech-to-text transcription.
-    Note: This requires the 'openai-whisper' package to be installed.
-    Install with: pip install openai-whisper
+    This function uses faster-whisper by default (4x faster than openai-whisper)
+    or falls back to OpenAI's Whisper model for speech-to-text transcription.
+
+    faster-whisper advantages:
+    - 4x faster than openai-whisper for same accuracy
+    - Lower memory usage
+    - 8-bit quantization support
+    - Built-in VAD filtering
+    - Word-level timestamps
+
+    Installation:
+    - faster-whisper: pip install faster-whisper
+    - openai-whisper: pip install openai-whisper
 
     Args:
         audio_path: Path to audio file (wav, mp3, mp4, etc.)
@@ -379,48 +395,64 @@ def transcribe_audio(
                    - 'base': Fast, good accuracy (~1GB RAM) [DEFAULT]
                    - 'small': Balanced (~2GB RAM)
                    - 'medium': High accuracy (~5GB RAM)
-                   - 'large': Best accuracy (~10GB RAM)
+                   - 'large', 'large-v2', 'large-v3': Best accuracy (~10GB RAM)
+                   - 'turbo', 'large-v3-turbo': Fast with high accuracy (~6GB RAM)
+                   - 'distil-large-v3': Compressed model (5.8x faster, 51% fewer params)
         language: Language code (e.g., 'en', 'es', 'fr'). None = auto-detect
         task: Task type: 'transcribe' (same language) or 'translate' (to English)
+        device: Device to use: 'cpu', 'cuda', or 'auto' (default)
+        compute_type: Computation type:
+                     - 'default': Auto-select based on device
+                     - 'int8': 8-bit quantization (faster, less memory)
+                     - 'int8_float16': 8-bit with FP16 (GPU only)
+                     - 'float16': FP16 (GPU only)
+                     - 'float32': FP32 (CPU default)
+        beam_size: Beam size for decoding (default: 5, higher = more accurate but slower)
+        vad_filter: Use Voice Activity Detection to filter silence (default: True)
+        word_timestamps: Return word-level timestamps (default: False)
+        use_faster_whisper: Use faster-whisper if True, else use openai-whisper (default: True)
 
     Returns:
         Dictionary containing:
         - 'text': Full transcription text
-        - 'segments': List of timestamped segments
+        - 'segments': List of timestamped segments (with words if word_timestamps=True)
         - 'language': Detected/specified language
+        - 'language_probability': Confidence of language detection (faster-whisper only)
 
     Raises:
         AudioProcessingError: If transcription fails
-        ImportError: If openai-whisper is not installed
+        ImportError: If required package is not installed
 
     Example:
-        >>> # Basic transcription
+        >>> # Basic transcription with faster-whisper (default)
         >>> result = transcribe_audio("speech.wav")
         >>> print(result['text'])
 
-        >>> # Save to file
+        >>> # Save to file with GPU acceleration
         >>> result = transcribe_audio(
         ...     "speech.wav",
         ...     output_path="transcript.txt",
-        ...     model_size="medium"
+        ...     model_size="large-v3",
+        ...     device="cuda",
+        ...     compute_type="float16"
         ... )
 
-        >>> # Translate to English
+        >>> # Word-level timestamps
         >>> result = transcribe_audio(
-        ...     "french_speech.wav",
-        ...     task="translate"
+        ...     "speech.wav",
+        ...     word_timestamps=True
+        ... )
+        >>> for seg in result['segments']:
+        ...     for word in seg.get('words', []):
+        ...         print(f"[{word['start']:.2f}s - {word['end']:.2f}s] {word['word']}")
+
+        >>> # Use OpenAI Whisper instead
+        >>> result = transcribe_audio(
+        ...     "speech.wav",
+        ...     use_faster_whisper=False
         ... )
     """
     try:
-        # Import whisper (lazy import to avoid requiring it for TTS-only usage)
-        try:
-            import whisper
-        except ImportError:
-            raise ImportError(
-                "OpenAI Whisper is required for speech-to-text. "
-                "Install with: pip install openai-whisper"
-            )
-
         audio_path = Path(audio_path)
 
         if not audio_path.exists():
@@ -432,46 +464,155 @@ def transcribe_audio(
             model_size=model_size,
             language=language,
             task=task,
+            engine="faster-whisper" if use_faster_whisper else "openai-whisper",
         )
 
-        # Suppress Whisper's verbose output to prevent MCP JSON parsing errors
-        import sys
-        import os
+        if use_faster_whisper:
+            # Use faster-whisper (recommended)
+            try:
+                from faster_whisper import WhisperModel
+            except ImportError:
+                raise ImportError(
+                    "faster-whisper is required for fast transcription. "
+                    "Install with: pip install faster-whisper\n"
+                    "Or set use_faster_whisper=False to use openai-whisper"
+                )
 
-        # Save original stderr
-        original_stderr = sys.stderr
+            # Auto-select compute type based on device
+            if compute_type == "default":
+                if device == "cuda" or (device == "auto" and _is_cuda_available()):
+                    compute_type = "float16"
+                else:
+                    compute_type = "int8"
 
-        try:
-            # Redirect stderr to devnull during model loading and transcription
-            sys.stderr = open(os.devnull, "w")
+            # Auto-select device
+            if device == "auto":
+                device = "cuda" if _is_cuda_available() else "cpu"
 
-            # Load Whisper model (this outputs progress bars)
-            log.debug("loading_whisper_model", model_size=model_size)
-            model = whisper.load_model(model_size)
+            log.debug(
+                "loading_faster_whisper_model",
+                model_size=model_size,
+                device=device,
+                compute_type=compute_type,
+            )
 
-            # Transcribe audio (also outputs progress)
-            log.debug("transcribing", file=str(audio_path))
-            result = model.transcribe(
+            # Load faster-whisper model
+            # Models are automatically cached in ~/.cache/huggingface/hub/
+            # and reused on subsequent calls - no configuration needed!
+            model = WhisperModel(
+                model_size,
+                device=device,
+                compute_type=compute_type,
+                cpu_threads=4,
+            )
+
+            # Transcribe with faster-whisper
+            log.debug("transcribing_with_faster_whisper", file=str(audio_path))
+
+            segments_generator, info = model.transcribe(
                 str(audio_path),
                 language=language,
                 task=task,
-                verbose=False,  # Disable verbose output
+                beam_size=beam_size,
+                vad_filter=vad_filter,
+                word_timestamps=word_timestamps,
             )
-        finally:
-            # Restore stderr
-            sys.stderr.close()
-            sys.stderr = original_stderr
 
-        # Extract transcription
-        transcription_text = result["text"].strip()
-        detected_language = result.get("language", language or "unknown")
+            # Convert generator to list to get all segments
+            segments_list = list(segments_generator)
 
-        log.info(
-            "transcription_complete",
-            text_length=len(transcription_text),
-            language=detected_language,
-            num_segments=len(result.get("segments", [])),
-        )
+            # Extract text and format segments
+            transcription_text = " ".join([seg.text.strip() for seg in segments_list])
+            detected_language = info.language
+            language_probability = info.language_probability
+
+            # Format segments for output
+            formatted_segments = []
+            for seg in segments_list:
+                seg_dict = {
+                    "id": seg.id,
+                    "start": seg.start,
+                    "end": seg.end,
+                    "text": seg.text,
+                }
+
+                # Add word-level timestamps if requested
+                if word_timestamps and hasattr(seg, "words"):
+                    seg_dict["words"] = [
+                        {
+                            "start": word.start,
+                            "end": word.end,
+                            "word": word.word,
+                            "probability": word.probability,
+                        }
+                        for word in seg.words
+                    ]
+
+                formatted_segments.append(seg_dict)
+
+            log.info(
+                "transcription_complete",
+                text_length=len(transcription_text),
+                language=detected_language,
+                language_probability=f"{language_probability:.2%}",
+                num_segments=len(formatted_segments),
+                engine="faster-whisper",
+            )
+
+            result = {
+                "text": transcription_text,
+                "segments": formatted_segments,
+                "language": detected_language,
+                "language_probability": language_probability,
+            }
+
+        else:
+            # Use OpenAI Whisper (fallback)
+            try:
+                import whisper
+            except ImportError:
+                raise ImportError(
+                    "OpenAI Whisper is required. "
+                    "Install with: pip install openai-whisper\n"
+                    "Or set use_faster_whisper=True to use faster-whisper (recommended)"
+                )
+
+            # Suppress Whisper's verbose output
+            import sys
+            import os
+
+            original_stderr = sys.stderr
+
+            try:
+                sys.stderr = open(os.devnull, "w")
+
+                log.debug("loading_openai_whisper_model", model_size=model_size)
+                model = whisper.load_model(model_size)
+
+                log.debug("transcribing_with_openai_whisper", file=str(audio_path))
+                openai_result = model.transcribe(
+                    str(audio_path), language=language, task=task, verbose=False
+                )
+            finally:
+                sys.stderr.close()
+                sys.stderr = original_stderr
+
+            transcription_text = openai_result["text"].strip()
+            detected_language = openai_result.get("language", language or "unknown")
+
+            log.info(
+                "transcription_complete",
+                text_length=len(transcription_text),
+                language=detected_language,
+                num_segments=len(openai_result.get("segments", [])),
+                engine="openai-whisper",
+            )
+
+            result = {
+                "text": transcription_text,
+                "segments": openai_result.get("segments", []),
+                "language": detected_language,
+            }
 
         # Save to file if output path provided
         if output_path:
@@ -479,18 +620,24 @@ def transcribe_audio(
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(output_path, "w", encoding="utf-8") as f:
-                f.write(transcription_text)
+                f.write(result["text"])
 
             log.info("transcription_saved", path=str(output_path))
 
-        return {
-            "text": transcription_text,
-            "segments": result.get("segments", []),
-            "language": detected_language,
-        }
+        return result
 
     except ImportError:
         raise
     except Exception as e:
         log.error("transcription_failed", error=str(e), path=str(audio_path))
         raise AudioProcessingError(f"Failed to transcribe audio: {e}") from e
+
+
+def _is_cuda_available() -> bool:
+    """Check if CUDA is available for GPU acceleration."""
+    try:
+        import torch
+
+        return torch.cuda.is_available()
+    except ImportError:
+        return False
