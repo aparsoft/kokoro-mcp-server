@@ -4,16 +4,14 @@ from pathlib import Path
 from aparsoft_tts.core.engine import TTSEngine
 from aparsoft_tts.config import TTSConfig
 
+
 # Example 1: Simple text-to-speech
 def basic_example():
     """Generate simple speech."""
     print("Example 1: Basic TTS")
 
     engine = TTSEngine()
-    engine.generate(
-        text="Welcome to Aparsoft's YouTube channel",
-        output_path="example_output.wav"
-    )
+    engine.generate(text="Welcome to Aparsoft's YouTube channel", output_path="example_output.wav")
     print("✅ Generated: example_output.wav\n")
 
 
@@ -27,7 +25,7 @@ def custom_voice_example():
         text="This is British George speaking faster",
         output_path="example_george.wav",
         voice="bm_george",
-        speed=1.3
+        speed=1.3,
     )
     print("✅ Generated: example_george.wav\n")
 
@@ -41,14 +39,10 @@ def batch_example():
     texts = [
         "Welcome to the video",
         "In this tutorial we'll cover AI deployment",
-        "Don't forget to subscribe"
+        "Don't forget to subscribe",
     ]
 
-    paths = engine.batch_generate(
-        texts=texts,
-        output_dir="example_batch/",
-        voice="am_michael"
-    )
+    paths = engine.batch_generate(texts=texts, output_dir="example_batch/", voice="am_michael")
 
     print(f"✅ Generated {len(paths)} files in example_batch/\n")
 
@@ -74,9 +68,7 @@ Thanks for watching! Subscribe for more AI tutorials.
 
     engine = TTSEngine()
     engine.process_script(
-        script_path=script_path,
-        output_path="example_complete.wav",
-        gap_duration=0.5
+        script_path=script_path, output_path="example_complete.wav", gap_duration=0.5
     )
 
     print("✅ Generated: example_complete.wav\n")
@@ -91,14 +83,11 @@ def config_example():
         voice="af_bella",  # Female voice
         speed=0.9,  # Slightly slower
         enhance_audio=True,
-        fade_duration=0.2  # Longer fade
+        fade_duration=0.2,  # Longer fade
     )
 
     engine = TTSEngine(config=config)
-    engine.generate(
-        text="This example uses custom configuration",
-        output_path="example_config.wav"
-    )
+    engine.generate(text="This example uses custom configuration", output_path="example_config.wav")
 
     print("✅ Generated: example_config.wav\n")
 
@@ -110,8 +99,23 @@ def streaming_example():
 
     engine = TTSEngine()
     chunks = []
+    stream_text = """
 
-    for chunk in engine.generate_stream("This is streaming TTS generation"):
+Hi, I'm from Aparsoft, and in this video we'll show you how to deploy AI chatbots in just 10 days.
+
+First, let's understand what makes our Quick AI Solutions different from traditional consultancy.
+
+Second, we'll explore our modular architecture that allows rapid deployment.
+
+Third, we'll demonstrate a live deployment example.
+
+Unlike projects that take 3 to 6 months, we use pre-built modules and proven frameworks.
+
+Thanks for watching! Subscribe for more AI tutorials.
+
+"""
+
+    for chunk in engine.generate_stream(stream_text):
         chunks.append(chunk)
         print(f"  Received chunk: {len(chunk)} samples")
 
@@ -123,11 +127,11 @@ if __name__ == "__main__":
     print("Aparsoft TTS - Usage Examples")
     print("=" * 60 + "\n")
 
-    basic_example()
-    custom_voice_example()
-    batch_example()
-    script_example()
-    config_example()
+    # basic_example()
+    # custom_voice_example()
+    # batch_example()
+    # script_example()
+    # config_example()
     streaming_example()
 
     print("=" * 60)

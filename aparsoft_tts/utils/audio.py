@@ -1,6 +1,20 @@
 # aparsoft_tts/utils/audio.py
 
-"""Audio processing utilities for TTS system."""
+"""Audio processing utilities for TTS system.
+
+This module provides various audio processing functions used in the Aparsoft TTS
+system. It includes audio enhancement, combining segments, loading/saving audio,
+chunking for streaming, duration calculation, and speech-to-text transcription using
+OpenAI Whisper.
+
+Key functionalities:
+- Audio enhancement (normalization, trimming, noise reduction, fades)
+- Combining audio segments with gaps and crossfades
+- Loading and saving audio files
+- Chunking audio for streaming
+- Getting audio duration
+- Transcribing audio to text using OpenAI Whisper
+"""
 
 from pathlib import Path
 from typing import BinaryIO
@@ -71,16 +85,16 @@ def enhance_audio(
             audio_trimmed, trim_indices = librosa.effects.trim(
                 audio,
                 top_db=trim_db,
-                frame_length=512,   # Smaller for better resolution (default 2048)
-                hop_length=128      # Smaller for finer control (default 512)
+                frame_length=512,  # Smaller for better resolution (default 2048)
+                hop_length=128,  # Smaller for finer control (default 512)
             )
-            
+
             # Add generous margin at end to preserve soft endings (critical for am_michael voice)
             # This prevents cutting off final consonants and soft voice endings
             margin_samples = int(0.1 * sample_rate)  # 100ms margin at end (increased from 50ms)
             start_idx = trim_indices[0]
             end_idx = min(trim_indices[1] + margin_samples, len(audio))
-            
+
             audio = audio[start_idx:end_idx]
 
         # Spectral noise reduction
@@ -423,14 +437,14 @@ def transcribe_audio(
         # Suppress Whisper's verbose output to prevent MCP JSON parsing errors
         import sys
         import os
-        
+
         # Save original stderr
         original_stderr = sys.stderr
-        
+
         try:
             # Redirect stderr to devnull during model loading and transcription
-            sys.stderr = open(os.devnull, 'w')
-            
+            sys.stderr = open(os.devnull, "w")
+
             # Load Whisper model (this outputs progress bars)
             log.debug("loading_whisper_model", model_size=model_size)
             model = whisper.load_model(model_size)

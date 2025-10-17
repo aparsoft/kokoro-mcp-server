@@ -1,6 +1,19 @@
 # aparsoft_tts/core/engine.py
 
-"""Comprehensive TTS engine using Kokoro TTS with intelligent chunking."""
+"""Comprehensive TTS engine using Kokoro TTS with intelligent chunking.
+
+This module provides a high-level TTSEngine class that interfaces with the Kokoro TTS
+model. It includes advanced features such as automatic token counting, intelligent
+chunking of long texts, audio enhancement, batch processing, and streaming support.
+
+Key functionality:
+- Automatic token counting and intelligent chunking for long texts
+- Audio enhancement with professional processing
+- Batch processing capabilities
+- Streaming support
+- Error handling and logging
+- Configuration management
+"""
 
 import re
 from pathlib import Path
@@ -30,35 +43,35 @@ from aparsoft_tts.utils.logging import LoggerMixin
 
 # English voices
 MALE_VOICES = [
-    "am_adam",      # American male - natural inflection
-    "am_michael",   # American male - deeper tones (professional)
-    "bm_george",    # British male - classic accent
-    "bm_lewis",     # British male - modern accent
+    "am_adam",  # American male - natural inflection
+    "am_michael",  # American male - deeper tones (professional)
+    "bm_george",  # British male - classic accent
+    "bm_lewis",  # British male - modern accent
 ]
 
 FEMALE_VOICES = [
-    "af_bella",     # American female - warm tones
-    "af_nicole",    # American female - dynamic range
-    "af_sarah",     # American female - clear articulation
-    "af_sky",       # American female - youthful energy
-    "bf_emma",      # British female - professional
+    "af_bella",  # American female - warm tones
+    "af_nicole",  # American female - dynamic range
+    "af_sarah",  # American female - clear articulation
+    "af_sky",  # American female - youthful energy
+    "bf_emma",  # British female - professional
     "bf_isabella",  # British female - soft tones
 ]
 
 # Special voice (50-50 mix of Bella and Sarah)
 SPECIAL_VOICES = [
-    "af",          # Default American female (Bella + Sarah mix)
+    "af",  # Default American female (Bella + Sarah mix)
 ]
 
 # Hindi voices (lang_code='h', requires espeak-ng with hi)
 HINDI_MALE_VOICES = [
-    "hm_omega",     # Hindi male - voice omega
-    "hm_psi",       # Hindi male - voice psi
+    "hm_omega",  # Hindi male - voice omega
+    "hm_psi",  # Hindi male - voice psi
 ]
 
 HINDI_FEMALE_VOICES = [
-    "hf_alpha",     # Hindi female - voice alpha
-    "hf_beta",      # Hindi female - voice beta
+    "hf_alpha",  # Hindi female - voice alpha
+    "hf_beta",  # Hindi female - voice beta
 ]
 
 ALL_VOICES = MALE_VOICES + FEMALE_VOICES + SPECIAL_VOICES + HINDI_MALE_VOICES + HINDI_FEMALE_VOICES
@@ -66,7 +79,7 @@ ALL_VOICES = MALE_VOICES + FEMALE_VOICES + SPECIAL_VOICES + HINDI_MALE_VOICES + 
 
 def get_lang_code_from_voice(voice: str) -> str:
     """Get the correct lang_code for a voice based on its prefix.
-    
+
     Kokoro requires lang_code to match voice prefix:
     - am_/af_ (American) -> 'a'
     - bm_/bf_ (British) -> 'b'
@@ -77,14 +90,14 @@ def get_lang_code_from_voice(voice: str) -> str:
     - im_/if_ (Italian) -> 'i'
     - pm_/pf_ (Portuguese) -> 'p'
     - fm_/ff_ (French) -> 'f'
-    
+
     Args:
         voice: Voice name (e.g., 'am_michael', 'hf_alpha', 'bm_george')
-        
+
     Returns:
-        Lang code: 'a' for American English, 'b' for British English, 
+        Lang code: 'a' for American English, 'b' for British English,
                    'h' for Hindi, etc.
-        
+
     Example:
         >>> get_lang_code_from_voice('am_michael')
         'a'
@@ -167,7 +180,7 @@ class TTSEngine(LoggerMixin):
             ModelLoadError: If model fails to load
         """
         self.config = config or get_config().tts
-        
+
         # Cache for KPipeline instances per lang_code
         # This prevents recreating pipelines and improves performance
         self._pipelines: dict[str, KPipeline] = {}
@@ -186,24 +199,21 @@ class TTSEngine(LoggerMixin):
         except Exception as e:
             self.log.error("tts_initialization_failed", error=str(e))
             raise ModelLoadError(f"Failed to initialize TTS model: {e}") from e
-    
+
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create a KPipeline for the specified lang_code.
-        
+
         Pipelines are cached to avoid recreation overhead.
-        
+
         Args:
             lang_code: Language code ('a' or 'b')
-            
+
         Returns:
             KPipeline instance for the lang_code
         """
         if lang_code not in self._pipelines:
             self.log.debug("creating_pipeline", lang_code=lang_code)
-            self._pipelines[lang_code] = KPipeline(
-                lang_code=lang_code, 
-                repo_id=self.repo_id
-            )
+            self._pipelines[lang_code] = KPipeline(lang_code=lang_code, repo_id=self.repo_id)
         return self._pipelines[lang_code]
 
     def _count_tokens(self, text: str, lang_code: str = "a") -> int:
@@ -226,10 +236,10 @@ class TTSEngine(LoggerMixin):
         try:
             # Get the pipeline for this language
             pipeline = self._get_pipeline(lang_code)
-            
+
             # Use pipeline's G2P to get phonemes
             # For English (lang_code 'a' or 'b'), g2p returns (phonemes, tokens)
-            if lang_code in 'ab':
+            if lang_code in "ab":
                 ps, tokens = pipeline.g2p(text)
                 # Return phoneme count
                 return len(ps) if ps else 0
@@ -237,7 +247,7 @@ class TTSEngine(LoggerMixin):
                 # For other languages, g2p returns (phonemes, _)
                 ps, _ = pipeline.g2p(text)
                 return len(ps) if ps else 0
-                
+
         except Exception as e:
             # Fallback: rough estimate
             # Average: 1 token ≈ 4 characters for English
@@ -426,10 +436,10 @@ class TTSEngine(LoggerMixin):
         try:
             # Get correct lang_code for voice
             voice_lang_code = get_lang_code_from_voice(voice)
-            
+
             # Get appropriate pipeline for this voice
             pipeline = self._get_pipeline(voice_lang_code)
-            
+
             # Count tokens with correct lang_code
             token_count = self._count_tokens(text, voice_lang_code)
 
@@ -556,7 +566,7 @@ class TTSEngine(LoggerMixin):
             # Get correct pipeline for voice
             voice_lang_code = get_lang_code_from_voice(voice)
             pipeline = self._get_pipeline(voice_lang_code)
-            
+
             token_count = self._count_tokens(text, voice_lang_code)
             self.log.info(
                 "generating_speech_stream",

@@ -1,6 +1,10 @@
 # aparsoft_tts/utils/exceptions.py
 
-"""Custom exceptions for Aparsoft TTS system."""
+"""Custom exceptions for Aparsoft TTS system.
+
+This module defines a set of custom exception classes to handle various error
+scenarios in the Aparsoft TTS system.
+"""
 
 
 class AparsoftTTSError(Exception):

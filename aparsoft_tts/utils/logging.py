@@ -1,6 +1,18 @@
 # aparsoft_tts/utils/logging.py
 
-"""Structured logging configuration using structlog."""
+"""Structured logging configuration using structlog.
+
+This module sets up and configures structured logging for the Aparsoft TTS system
+using the structlog library. It provides functions to initialize logging, obtain
+logger instances, and manage logging context.
+
+Key features:
+- Structured JSON logging for production
+- Human-readable console logging for development
+- Correlation IDs for request tracing
+- Context management
+- Performance-optimized processing chain
+"""
 
 import logging
 import sys
