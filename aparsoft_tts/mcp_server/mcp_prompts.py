@@ -292,7 +292,7 @@ async def hindi_script_optimizer(args: HindiScriptOptimizationPromptArgs) -> str
 
 ## 🎯 THE GOLDEN RULE FOR KOKORO HINDI
 
-**For BEST QUALITY with Kokoro Hindi voices, follow these TWO critical rules:**
+**For BEST QUALITY with Kokoro Hindi voices, follow these FIVE critical rules:**
 
 1. **📝 Write English words PHONETICALLY in Devanagari script**
    - MATHEMATICS → मैथमेटिक्स
@@ -304,7 +304,17 @@ async def hindi_script_optimizer(args: HindiScriptOptimizationPromptArgs) -> str
    - "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह इम्पॉर्टेंट है." ✅
    - "बच्चों, आज हम MATHEMATICS सीखेंगे।" ❌
 
-**Why?** Kokoro's Hindi model was trained on phonetic Devanagari text with English punctuation patterns.
+3. **🅰️ Spell out acronyms with spaces**
+   - FAQ → एफ ए क्यू, API → ए पी आई, OCR → ओ सी आर, URL → यू आर एल
+
+4. **✏️ Add strategic commas for natural pauses**
+   - "अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, जीरो से..." ✅
+
+5. **♀️/♂️ Match verb gender with voice gender**
+   - Female (hf_alpha, hf_beta): "मैं दिखाती हूं" ✅
+   - Male (hm_omega): "मैं दिखाता हूं" ✅
+
+**Why?** Kokoro's Hindi model was trained on phonetic Devanagari with English punctuation, and these practices improve naturalness.
 
 ---
 
@@ -417,15 +427,15 @@ Better:
 
 ## ❌ COMMON MISTAKES TO AVOID
 
-### Mistake #1: Using Raw English Words Instead of Phonetic Devanagari
+### Mistake #1: Using Raw English Words and Not Spelling Out Acronyms
 ```
 ❌ WRONG for Kokoro:
-"बच्चों, आज हम MATHEMATICS सीखेंगे. SCIENCE भी IMPORTANT है।"
-(Raw English words + wrong punctuation)
+"बच्चों आज हम MATHEMATICS सीखेंगे. FAQ बॉट API से OCR करेगा।"
+(Raw English + acronyms not spelled + no commas + wrong punctuation)
 
 ✅ CORRECT:
-"बच्चों, आज हम मैथमेटिक्स सीखेंगे. साइंस भी इम्पॉर्टेंट है."
-(Phonetic Devanagari + English full stop)
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. एफ ए क्यू बॉट, ए पी आई से, ओ सी आर करेगा."
+(Phonetic Devanagari + spelled acronyms + commas + English full stop)
 ```
 
 ### Mistake #2: Mixing Punctuation
@@ -439,13 +449,15 @@ Better:
 (Consistent use of . only)
 ```
 
-### Mistake #3: Too Many Words Between Pauses
+### Mistake #3: Too Many Words Between Pauses and Missing Commas
 ```
 ❌ HARD TO READ:
-"बच्चों आज की क्लास में हम एडवांस्ड मैथमेटिक्स के टॉपिक्स और कॉन्सेप्ट्स को डिटेल में सीखेंगे।"
+"बच्चों आज की क्लास में हम एडवांस्ड मैथमेटिक्स के टॉपिक्स और कॉन्सेप्ट्स को डिटेल में सीखेंगे FAQ भी सीखेंगे।"
+(Too long + no commas + acronym not spelled)
 
 ✅ BETTER:
-"बच्चों, आज की क्लास शुरू करें. हम एडवांस्ड मैथमेटिक्स सीखेंगे. टॉपिक्स बहुत इंटरेस्टिंग हैं."
+"बच्चों, आज की क्लास शुरू करें. हम एडवांस्ड मैथमेटिक्स सीखेंगे. टॉपिक्स बहुत इंटरेस्टिंग हैं. एफ ए क्यू भी सीखेंगे."
+(Shorter + commas + spelled acronym)
 ```
 
 ---
@@ -454,6 +466,9 @@ Better:
 
 - [ ] All English words converted to phonetic Devanagari (MATHEMATICS → मैथमेटिक्स)
 - [ ] All sentences use . (not ।) if using Kokoro
+- [ ] **Acronyms spelled out with spaces (FAQ → एफ ए क्यू, API → ए पी आई, OCR → ओ सी आर)**
+- [ ] **Strategic commas added for natural breathing pauses**
+- [ ] **Verb gender matches voice gender (female = दिखाती, male = दिखाता)**
 - [ ] Sentences are 5-15 words each
 - [ ] Numbers are written as digits (1000, 2000)
 - [ ] Abbreviations written phonetically (USA → यू एस ए)
@@ -469,21 +484,31 @@ Better:
 ### Example 1: Educational Content with Technical Terms
 
 ```
-❌ ORIGINAL (Raw English + Wrong Punctuation):
-"बच्चों, आज हम MATHEMATICS सीखेंगे। ALGEBRA और GEOMETRY बहुत IMPORTANT हैं।"
+❌ ORIGINAL (Raw English + Wrong Punctuation + No Commas):
+"बच्चों आज हम MATHEMATICS सीखेंगे। ALGEBRA और GEOMETRY बहुत IMPORTANT हैं।"
 
-✅ OPTIMIZED (Phonetic Devanagari + English Punctuation):
-"बच्चों, आज हम मैथमेटिक्स सीखेंगे. अल्जेब्रा और जियोमेट्री बहुत इम्पॉर्टेंट हैं."
+✅ OPTIMIZED (Phonetic Devanagari + English Punctuation + Commas):
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. अल्जेब्रा और जियोमेट्री, बहुत इम्पॉर्टेंट हैं."
 ```
 
-### Example 2: Technology Tutorial
+### Example 2: Technology Tutorial with Acronyms
 
 ```
-❌ ORIGINAL (Mixed Format):
-"आज हम PROGRAMMING सीखेंगे। PYTHON एक POWERFUL LANGUAGE है।"
+❌ ORIGINAL (Mixed Format + Acronyms Not Spelled):
+"आज हम PROGRAMMING सीखेंगे। API और SDK बहुत उपयोगी हैं।"
 
-✅ OPTIMIZED (Clean Phonetic):
-"आज हम प्रोग्रामिंग सीखेंगे. पायथन एक पावरफुल लैंग्वेज है."
+✅ OPTIMIZED (Phonetic + Spelled Acronyms + Commas):
+"आज हम प्रोग्रामिंग सीखेंगे. ए पी आई और एस डी के, बहुत उपयोगी हैं."
+```
+
+### Example 3: Business/Professional (LinkedIn Style)
+
+```
+❌ ORIGINAL (Everything Wrong):
+"अगर मैं आपको बताऊं कि हम आपकी WEBSITE को FAQ CHATBOT में ले जा सकते हैं। OCR और API के साथ।"
+
+✅ OPTIMIZED (Professional Quality):
+"अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, एफ ए क्यू चैटबॉट में ले जा सकते हैं. ओ सी आर और ए पी आई के साथ."
 ```
 
 ---

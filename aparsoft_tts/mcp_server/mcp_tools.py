@@ -132,17 +132,22 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
     - Write English words phonetically in Devanagari script
     - Example: "मैथमेटिक्स" (MATHEMATICS), "साइंस" (SCIENCE), "टेक्नोलॉजी" (TECHNOLOGY)
     - Use English full stops (.) instead of Hindi danda (।)
+    - Spell out acronyms: FAQ → एफ ए क्यू, API → ए पी आई, OCR → ओ सी आर
+    - Add strategic commas for natural pauses
+    - Match verb gender with voice (hf_alpha = female = दिखाती, hm_omega = male = दिखाता)
 
     📝 CORRECT FORMAT:
-    "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+    "अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, जीरो से फुल्ली फंक्शनल चैटबॉट में ले जा सकते हैं. बेसिक एफ ए क्यू बॉट नहीं."
 
     ❌ INCORRECT FORMAT:
     "बच्चों, आज हम MATHEMATICS सीखेंगे।"  (Raw English + Hindi danda)
-    "बच्चों, आज हम गणित सीखेंगे।"  (Pure Hindi + Hindi danda)
+    "बच्चों आज हम FAQ सीखेंगे."  (Acronym not spelled out)
 
     💡 WHY: Kokoro's Hindi model trained on phonetic Devanagari with English punctuation
     - Phonetic Devanagari = Natural pronunciation for English terms
     - English full stops (.) = Better rhythm and pacing
+    - Spelled acronyms = Clear pronunciation
+    - Strategic commas = Natural pauses for better flow
 
     Args:
         request: Speech generation parameters including engine selection
@@ -365,7 +370,9 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
     ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
     - Write English words phonetically in Devanagari: "मैथमेटिक्स" not "MATHEMATICS"
     - Use English full stops (.) instead of Hindi danda (।)
-    - Example: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+    - Spell out acronyms: FAQ → एफ ए क्यू, OCR → ओ सी आर, API → ए पी आई
+    - Add strategic commas for breathing points
+    - Example: "अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, जीरो से फुल्ली फंक्शनल चैटबॉट में ले जा सकते हैं. बेसिक एफ ए क्यू बॉट नहीं."
 
     Args:
         request: Batch generation parameters including engine selection
@@ -460,7 +467,9 @@ async def process_script(request: ProcessScriptRequest) -> str:
     ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
     - Write English words phonetically in Devanagari: "मैथमेटिक्स" not "MATHEMATICS"
     - Use English full stops (.) instead of Hindi danda (।)
-    - Example: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+    - Spell out acronyms with spaces: FAQ → एफ ए क्यू, OCR → ओ सी आर
+    - Use commas for natural pauses in longer sentences
+    - Example: "अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, जीरो से फुल्ली फंक्शनल चैटबॉट में ले जा सकते हैं."
 
     Args:
         request: Script processing parameters including engine selection
@@ -600,7 +609,10 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
     - Write English words phonetically in Devanagari script
     - Example: "मैथमेटिक्स" (MATHEMATICS), "साइंस" (SCIENCE), "टेक्नोलॉजी" (TECHNOLOGY)
     - Use English full stops (.) instead of Hindi danda (।)
-    - Example segment: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+    - Spell out acronyms: FAQ → एफ ए क्यू, OCR → ओ सी आर, API → ए पी आई
+    - Add strategic commas for pauses: "अगर मैं आपको बताऊं कि, हम आपकी वेबसाइट को, जीरो से..."
+    - Match verb gender with voice (hf_alpha=female, hm_omega=male)
+    - Example: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
 
     Args:
         request: Podcast generation parameters including segments list
