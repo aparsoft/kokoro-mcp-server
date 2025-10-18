@@ -303,11 +303,15 @@ with st.sidebar:
     # Show engine info
     try:
         engine_info = get_engine_info(selected_engine)
-        with st.expander("ℹ️ Engine Details", expanded=False):
-            st.markdown(f"**Model:** {engine_info['model_size']}")
-            st.markdown(f"**Languages:** {', '.join(engine_info['languages'])}")
-            st.markdown(f"**Voices:** {engine_info['voice_count']}")
-            st.markdown(f"**Speed:** {engine_info['speed']}")
+        if engine_info:
+            with st.expander("ℹ️ Engine Details", expanded=False):
+                st.markdown(f"**Name:** {engine_info.get('name', 'N/A')}")
+                st.markdown(f"**Description:** {engine_info.get('description', 'N/A')}")
+                st.markdown(f"**Model Size:** {engine_info.get('model_size', 'N/A')}")
+                st.markdown(f"**Languages:** {', '.join(engine_info.get('languages', []))}")
+                st.markdown(f"**Voices:** {engine_info.get('voices', 'N/A')}")
+                if engine_info.get("features"):
+                    st.markdown(f"**Features:** {', '.join(engine_info['features'][:3])}")
     except Exception as e:
         st.warning(f"Could not load engine info: {str(e)}")
 
@@ -374,8 +378,9 @@ with st.sidebar:
 
     if st.button("💾 Save Current Config", width="stretch"):
         if preset_name:
-            if st.session_state.engine:
-                config = st.session_state.engine.config
+            try:
+                engine = get_current_engine()
+                config = engine.config
                 presets[preset_name] = {
                     "voice": config.voice,
                     "speed": config.speed,
@@ -387,8 +392,8 @@ with st.sidebar:
                 save_presets(presets)
                 st.success(f"✅ Saved preset: {preset_name}")
                 st.rerun()
-            else:
-                st.error("❌ Engine not initialized")
+            except Exception as e:
+                st.error(f"❌ Failed to save preset: {str(e)}")
         else:
             st.error("❌ Please enter a preset name")
 
@@ -2269,8 +2274,9 @@ with tab8:
     st.markdown("---")
     st.markdown("### 📋 Current Configuration")
 
-    if st.session_state.engine:
-        config = st.session_state.engine.config
+    try:
+        engine = get_current_engine()
+        config = engine.config
 
         config_data = {
             "Voice": config.voice,
@@ -2288,6 +2294,8 @@ with tab8:
         config_items = [(k, str(v)) for k, v in config_data.items()]
         config_df = pd.DataFrame(config_items, columns=["Setting", "Value"])
         st.dataframe(config_df, width="stretch", hide_index=True)
+    except Exception as e:
+        st.info("💡 Load an engine first to view its configuration")
 
 # ==========================================
 # TAB 9: ANALYTICS

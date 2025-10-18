@@ -125,6 +125,25 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
     - Emotion control for Indic engine (happy, sad, angry, etc.)
     - Production-quality output
 
+    🇮🇳 IMPORTANT - KOKORO HINDI LANGUAGE BEST PRACTICES:
+    When using Kokoro engine with Hindi text (voices like hf_alpha, hm_omega):
+
+    ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
+    - Write English words phonetically in Devanagari script
+    - Example: "मैथमेटिक्स" (MATHEMATICS), "साइंस" (SCIENCE), "टेक्नोलॉजी" (TECHNOLOGY)
+    - Use English full stops (.) instead of Hindi danda (।)
+
+    📝 CORRECT FORMAT:
+    "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+
+    ❌ INCORRECT FORMAT:
+    "बच्चों, आज हम MATHEMATICS सीखेंगे।"  (Raw English + Hindi danda)
+    "बच्चों, आज हम गणित सीखेंगे।"  (Pure Hindi + Hindi danda)
+
+    💡 WHY: Kokoro's Hindi model trained on phonetic Devanagari with English punctuation
+    - Phonetic Devanagari = Natural pronunciation for English terms
+    - English full stops (.) = Better rhythm and pacing
+
     Args:
         request: Speech generation parameters including engine selection
 
@@ -174,16 +193,21 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         # Get TTS engine for the requested engine type (lazy loaded on first use)
         engine = get_tts_engine(request.engine)
 
+        # Build kwargs for generate() - only include emotion for Indic engine
+        generate_kwargs = {
+            "text": request.text,
+            "output_path": output_file_abs,
+            "voice": request.voice,
+            "speed": request.speed,
+            "enhance": request.enhance,
+        }
+
+        # Only add emotion parameter for Indic engine (Kokoro doesn't support it)
+        if request.engine == "indic":
+            generate_kwargs["emotion"] = request.emotion
+
         # Generate speech with absolute path
-        # For Indic engine, emotion will be used; for others, it will be ignored
-        output_path = engine.generate(
-            text=request.text,
-            output_path=output_file_abs,
-            voice=request.voice,
-            speed=request.speed,
-            enhance=request.enhance,
-            emotion=request.emotion if request.engine == "indic" else None,
-        )
+        output_path = engine.generate(**generate_kwargs)
 
         # Get file size and actual path
         actual_path = Path(output_path).resolve()
@@ -335,6 +359,14 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
 
     Supports all three engines (kokoro, openvoice, indic).
 
+    🇮🇳 IMPORTANT - KOKORO HINDI LANGUAGE BEST PRACTICES:
+    When using Kokoro engine with Hindi text:
+
+    ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
+    - Write English words phonetically in Devanagari: "मैथमेटिक्स" not "MATHEMATICS"
+    - Use English full stops (.) instead of Hindi danda (।)
+    - Example: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
+
     Args:
         request: Batch generation parameters including engine selection
 
@@ -372,13 +404,19 @@ async def batch_generate(request: BatchGenerateRequest) -> str:
         # Get TTS engine for the requested engine type (lazy loaded on first use)
         engine = get_tts_engine(request.engine)
 
-        paths = engine.batch_generate(
-            texts=request.texts,
-            output_dir=output_dir_abs,
-            voice=request.voice,
-            speed=request.speed,
-            emotion=request.emotion if request.engine == "indic" else None,
-        )
+        # Build kwargs for batch_generate() - only include emotion for Indic engine
+        batch_kwargs = {
+            "texts": request.texts,
+            "output_dir": output_dir_abs,
+            "voice": request.voice,
+            "speed": request.speed,
+        }
+
+        # Only add emotion parameter for Indic engine (Kokoro doesn't support it)
+        if request.engine == "indic":
+            batch_kwargs["emotion"] = request.emotion
+
+        paths = engine.batch_generate(**batch_kwargs)
 
         result = f"""✅ Batch generation completed!
 
@@ -415,6 +453,14 @@ async def process_script(request: ProcessScriptRequest) -> str:
     creating complete YouTube video voiceovers.
 
     Supports all three engines (kokoro, openvoice, indic).
+
+    🇮🇳 IMPORTANT - KOKORO HINDI LANGUAGE BEST PRACTICES:
+    When processing Hindi scripts with Kokoro engine:
+
+    ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
+    - Write English words phonetically in Devanagari: "मैथमेटिक्स" not "MATHEMATICS"
+    - Use English full stops (.) instead of Hindi danda (।)
+    - Example: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
 
     Args:
         request: Script processing parameters including engine selection
@@ -462,14 +508,20 @@ async def process_script(request: ProcessScriptRequest) -> str:
         # Get TTS engine for the requested engine type (lazy loaded on first use)
         engine = get_tts_engine(request.engine)
 
-        output_path = engine.process_script(
-            script_path=script_path_abs,
-            output_path=output_path_abs,
-            gap_duration=request.gap_duration,
-            voice=request.voice,
-            speed=request.speed,
-            emotion=request.emotion if request.engine == "indic" else None,
-        )
+        # Build kwargs for process_script() - only include emotion for Indic engine
+        script_kwargs = {
+            "script_path": script_path_abs,
+            "output_path": output_path_abs,
+            "gap_duration": request.gap_duration,
+            "voice": request.voice,
+            "speed": request.speed,
+        }
+
+        # Only add emotion parameter for Indic engine (Kokoro doesn't support it)
+        if request.engine == "indic":
+            script_kwargs["emotion"] = request.emotion
+
+        output_path = engine.process_script(**script_kwargs)
 
         actual_path = Path(output_path).resolve()
         file_size = actual_path.stat().st_size
@@ -540,6 +592,15 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
     - Casual conversation: 1.0-1.05x
     - Excitement/reveals: 1.1-1.2x
     - Questions: 0.95-1.0x
+
+    🇮🇳 IMPORTANT - KOKORO HINDI LANGUAGE BEST PRACTICES:
+    When creating Hindi podcasts with Kokoro engine:
+
+    ✅ USE PHONETIC HINDI DEVANAGARI with English full stops (.)
+    - Write English words phonetically in Devanagari script
+    - Example: "मैथमेटिक्स" (MATHEMATICS), "साइंस" (SCIENCE), "टेक्नोलॉजी" (TECHNOLOGY)
+    - Use English full stops (.) instead of Hindi danda (।)
+    - Example segment: "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह बहुत इम्पॉर्टेंट है."
 
     Args:
         request: Podcast generation parameters including segments list
@@ -632,15 +693,20 @@ async def generate_podcast(request: GeneratePodcastRequest) -> str:
             )
 
             try:
+                # Build kwargs for generate() - only include emotion for Indic engine
+                segment_kwargs = {
+                    "text": segment.text,
+                    "voice": segment.voice,
+                    "speed": segment.speed,
+                    "enhance": request.enhance,
+                }
+
+                # Only add emotion parameter for Indic engine (Kokoro doesn't support it)
+                if request.engine == "indic":
+                    segment_kwargs["emotion"] = segment.emotion
+
                 # Generate audio for this segment
-                # For Indic engine, emotion will be used; for others, it will be ignored
-                audio = engine.generate(
-                    text=segment.text,
-                    voice=segment.voice,
-                    speed=segment.speed,
-                    enhance=request.enhance,
-                    emotion=segment.emotion if request.engine == "indic" else None,
-                )
+                audio = engine.generate(**segment_kwargs)
 
                 # Ensure we have numpy array, not Path
                 if isinstance(audio, Path):

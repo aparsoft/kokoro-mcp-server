@@ -246,6 +246,268 @@ async def script_optimizer(args: ScriptOptimizationPromptArgs) -> str:
         return f"❌ Error generating script optimization guide: {str(e)}"
 
 
+class HindiScriptOptimizationPromptArgs(BaseModel):
+    """Arguments for Hindi script optimization prompt."""
+
+    tts_engine: str = Field(default="kokoro", description="TTS engine being used")
+
+
+@mcp.prompt()
+async def hindi_script_optimizer(args: HindiScriptOptimizationPromptArgs) -> str:
+    """Guide for optimizing Hindi scripts for natural TTS output with punctuation best practices.
+
+    Provides comprehensive optimization techniques for Hindi text:
+    - Sentence length and structure for Hindi
+    - Punctuation rules: When to use . (full stop) vs । (danda)
+    - 🔴 CRITICAL: Kokoro engine requires English full stops (.)
+    - Pronunciation handling (Hindi-specific terms, numbers)
+    - Paragraph structuring for optimal rendering
+    - Conversational Hindi style guidelines
+    - Common Hindi TTS pitfalls to avoid
+
+    ⚠️  ENGINE-SPECIFIC PUNCTUATION RULES:
+    - Kokoro engine (Hindi voices): Use . (English full stop)
+    - Indic engine: Can use both . and । (Hindi danda)
+    - Reason: Kokoro's Hindi model trained on English punctuation
+
+    Args:
+        args: Engine and optimization parameters
+
+    Returns:
+        Complete Hindi script optimization guide
+
+    Example:
+        >>> await hindi_script_optimizer(HindiScriptOptimizationPromptArgs(
+        ...     tts_engine="kokoro"
+        ... ))
+    """
+    try:
+        bind_context(operation="hindi_script_optimizer_prompt", tts_engine=args.tts_engine)
+
+        guide = f"""🇮🇳 **HINDI SCRIPT OPTIMIZATION GUIDE FOR TTS**
+
+**Current Engine:** {args.tts_engine}
+
+---
+
+## 🎯 THE GOLDEN RULE FOR KOKORO HINDI
+
+**For BEST QUALITY with Kokoro Hindi voices, follow these TWO critical rules:**
+
+1. **📝 Write English words PHONETICALLY in Devanagari script**
+   - MATHEMATICS → मैथमेटिक्स
+   - SCIENCE → साइंस
+   - TECHNOLOGY → टेक्नोलॉजी
+   - IMPORTANT → इम्पॉर्टेंट
+
+2. **🔤 Use English full stops (.) NOT Hindi danda (।)**
+   - "बच्चों, आज हम मैथमेटिक्स सीखेंगे. यह इम्पॉर्टेंट है." ✅
+   - "बच्चों, आज हम MATHEMATICS सीखेंगे।" ❌
+
+**Why?** Kokoro's Hindi model was trained on phonetic Devanagari text with English punctuation patterns.
+
+---
+
+## 🔴 CRITICAL: BEST PRACTICES FOR KOKORO HINDI VOICES
+
+### Kokoro Engine (Hindi Voices: hf_alpha, hm_omega, etc.)
+
+**REQUIREMENTS FOR BEST QUALITY:**
+
+1. **Use Phonetic Hindi Devanagari for English words**
+2. **Use English Full Stop (.) not Hindi Danda (।)**
+
+```
+✅ CORRECT for Kokoro (Phonetic Devanagari + English full stop):
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. टेक्नोलॉजी बहुत इम्पॉर्टेंट है."
+
+❌ WRONG for Kokoro (Raw English words):
+"बच्चों, आज हम MATHEMATICS सीखेंगे। TECHNOLOGY बहुत महत्वपूर्ण है।"
+
+❌ WRONG for Kokoro (Hindi Danda):
+"बच्चों, आज हम गणित सीखेंगे। यह महत्वपूर्ण है।"
+```
+
+**Why?** 
+- Kokoro's Hindi model trained on **phonetic Devanagari** (English words written in Hindi script)
+- English punctuation (.) provides better rhythm and natural pacing
+- Example conversions: MATHEMATICS → मैथमेटिक्स, SCIENCE → साइंस, TECHNOLOGY → टेक्नोलॉजी
+
+---
+
+### Indic Engine (Hindi: divya, madhav, rohit, etc.)
+
+**FLEXIBILITY: Can use both . and ।**
+
+```
+✅ Both are acceptable for Indic:
+"बच्चों, आज हम गणित सीखेंगे. द़ऐम डो और तब त॒के सुनॉ."
+
+✅ Also acceptable:
+"बच्चों, आज हम गणित सीखेंगे। द़ईम डो और तब त॒के सुन३।"
+```
+
+**Why?** Indic engine natively supports traditional Hindi punctuation.
+
+---
+
+## 📄 SENTENCE STRUCTURE OPTIMIZATION
+
+### Keep Sentences Short with Phonetic Devanagari
+
+```
+❌ Too Long with English words (hard to pronounce naturally):
+"बच्चों, आज की CLASS में हम ADVANCED MATHEMATICS के TOPICS सीखेंगे।"
+
+✅ Better (short, phonetic Devanagari, English punctuation):
+"बच्चों, आज की क्लास शुरू करते हैं. हम एडवांस्ड मैथमेटिक्स सीखेंगे. टॉपिक्स बहुत इंटरेस्टिंग हैं."
+```
+
+**Key Rules:**
+- Convert English words to phonetic Devanagari: CLASS → क्लास, ADVANCED → एडवांस्ड
+- Use English full stop (.) between sentences
+- Keep sentences 5-15 words for natural flow
+
+---
+
+## 🔢 NUMBER AND TECHNICAL TERM HANDLING
+
+### Write Numbers Phonetically
+
+```
+✅ Good:
+"1000 और 2000 के वच की तुलना करें."
+
+❌ Poor (unclear pronunciation):
+"हज़ार और दो हज़ार के वर्ष"
+
+Better:
+"1000 साल और 2000 साल की तुलना."
+```
+
+### Common Abbreviations
+
+```
+✅ Write abbreviations phonetically in Devanagari:
+"USA" → "यू एस ए" or "अमेरिका"
+"BMW" → "बी एम डब्ल्यू"
+"AI" → "आर्टिफिशियल इंटेलिजेंस"
+"MATHEMATICS" → "मैथमेटिक्स"
+```
+
+💡 **KEY PRINCIPLE:** All English words should be written phonetically in Devanagari script for best Kokoro results.
+
+---
+
+## 🁲 CONVERSATIONAL HINDI STYLE
+
+### Use Natural Dialogue Markers
+
+```
+✅ Add personality with phonetic English words:
+"तो सुनो. बहुत इम्पॉर्टेंट है. समझते हो? हां!"
+
+❌ Robotic or with raw English:
+"इसको सुनें और UNDERSTAND करें."
+```
+
+💡 **TIP:** Convert words like IMPORTANT → इम्पॉर्टेंट, UNDERSTAND → अंडरस्टैंड
+
+---
+
+## ❌ COMMON MISTAKES TO AVOID
+
+### Mistake #1: Using Raw English Words Instead of Phonetic Devanagari
+```
+❌ WRONG for Kokoro:
+"बच्चों, आज हम MATHEMATICS सीखेंगे. SCIENCE भी IMPORTANT है।"
+(Raw English words + wrong punctuation)
+
+✅ CORRECT:
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. साइंस भी इम्पॉर्टेंट है."
+(Phonetic Devanagari + English full stop)
+```
+
+### Mistake #2: Mixing Punctuation
+```
+❌ WRONG for Kokoro:
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. आगे की प्रॉब्लम्स सीखेंगे।"
+(Mix of . and ।)
+
+✅ CORRECT:
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. आगे की प्रॉब्लम्स सीखेंगे."
+(Consistent use of . only)
+```
+
+### Mistake #3: Too Many Words Between Pauses
+```
+❌ HARD TO READ:
+"बच्चों आज की क्लास में हम एडवांस्ड मैथमेटिक्स के टॉपिक्स और कॉन्सेप्ट्स को डिटेल में सीखेंगे।"
+
+✅ BETTER:
+"बच्चों, आज की क्लास शुरू करें. हम एडवांस्ड मैथमेटिक्स सीखेंगे. टॉपिक्स बहुत इंटरेस्टिंग हैं."
+```
+
+---
+
+## 📗 QUICK CHECKLIST BEFORE PROCESSING
+
+- [ ] All English words converted to phonetic Devanagari (MATHEMATICS → मैथमेटिक्स)
+- [ ] All sentences use . (not ।) if using Kokoro
+- [ ] Sentences are 5-15 words each
+- [ ] Numbers are written as digits (1000, 2000)
+- [ ] Abbreviations written phonetically (USA → यू एस ए)
+- [ ] No repeated punctuation (.. or ।।)
+- [ ] No mixing of . and । in Kokoro
+- [ ] No raw English words like "MATHEMATICS" or "SCIENCE"
+- [ ] Text reads naturally when spoken aloud
+
+---
+
+## 🎩 BEFORE/AFTER EXAMPLES
+
+### Example 1: Educational Content with Technical Terms
+
+```
+❌ ORIGINAL (Raw English + Wrong Punctuation):
+"बच्चों, आज हम MATHEMATICS सीखेंगे। ALGEBRA और GEOMETRY बहुत IMPORTANT हैं।"
+
+✅ OPTIMIZED (Phonetic Devanagari + English Punctuation):
+"बच्चों, आज हम मैथमेटिक्स सीखेंगे. अल्जेब्रा और जियोमेट्री बहुत इम्पॉर्टेंट हैं."
+```
+
+### Example 2: Technology Tutorial
+
+```
+❌ ORIGINAL (Mixed Format):
+"आज हम PROGRAMMING सीखेंगे। PYTHON एक POWERFUL LANGUAGE है।"
+
+✅ OPTIMIZED (Clean Phonetic):
+"आज हम प्रोग्रामिंग सीखेंगे. पायथन एक पावरफुल लैंग्वेज है."
+```
+
+---
+
+## 🚀 READY TO CREATE AMAZING HINDI TTS?
+
+1. ✅ Check your engine (Kokoro = . only)
+2. ✅ Optimize sentences (short and natural)
+3. ✅ Test on a small sample first
+4. ✅ Adjust based on output
+5. ✅ Iterate and improve!
+
+Happy creating! 🇮🇳
+"""
+
+        log.info("mcp_prompt_hindi_script_optimizer_generated", tts_engine=args.tts_engine)
+
+        return guide
+
+    except Exception as e:
+        log.error("mcp_prompt_hindi_script_optimizer_error", error=str(e))
+        return f"❌ Error generating Hindi script optimization guide: {str(e)}"
+
+
 @mcp.prompt()
 async def troubleshoot_tts() -> str:
     """Comprehensive troubleshooting guide for TTS quality issues.
