@@ -14,6 +14,11 @@ Key functionalities:
 - Chunking audio for streaming
 - Getting audio duration
 - Transcribing audio to text using OpenAI Whisper
+
+FIXES APPLIED FOR AF_SARAH VOICE:
+- Voice-specific trimming (gentler, more leading margin)
+- Voice-specific fade-in curves (starts from 0.5 instead of 0)
+- Extra padding before trimming for soft-attack voices
 """
 
 from pathlib import Path
@@ -39,6 +44,7 @@ def enhance_audio(
     add_fade: bool = True,
     fade_duration: float = 0.1,
     noise_reduction: bool = True,
+    voice_name: str | None = None,  # Voice name for voice-specific processing
 ) -> NDArray[np.float32]:
     """Enhance audio quality using various processing techniques.
 
@@ -51,6 +57,7 @@ def enhance_audio(
         add_fade: Add fade in/out
         fade_duration: Fade duration in seconds
         noise_reduction: Apply spectral noise reduction
+        voice_name: Voice name for voice-specific processing (e.g., 'af_sarah')
 
     Returns:
         Enhanced audio array
@@ -60,7 +67,7 @@ def enhance_audio(
 
     Example:
         >>> audio = np.random.randn(24000)
-        >>> enhanced = enhance_audio(audio)
+        >>> enhanced = enhance_audio(audio, voice_name='af_sarah')
     """
     try:
         log.debug(
@@ -69,41 +76,68 @@ def enhance_audio(
             sample_rate=sample_rate,
             normalize=normalize,
             trim_silence=trim_silence,
+            voice_name=voice_name,
         )
 
         # Ensure audio is float32
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
+        # ADD PADDING FOR SOFT-ATTACK VOICES (BEFORE ANY PROCESSING)
+        if voice_name == "af_sarah":
+            # af_sarah needs extra leading padding to prevent first character cutoff
+            audio = add_padding(audio, sample_rate, padding_start=0.08, padding_end=0.05)
+            log.debug("added_extra_padding_for_af_sarah", padding_start_ms=80)
+        else:
+            # Standard padding for other voices
+            audio = add_padding(audio, sample_rate, padding_start=0.05, padding_end=0.05)
+
         # Normalize
         if normalize:
             audio = librosa.util.normalize(audio)
 
-        # Trim silence with conservative parameters to preserve soft endings
+        # Trim silence with voice-specific parameters
         if trim_silence:
+            # VOICE-SPECIFIC TRIM PARAMETERS
+            if voice_name == "af_sarah":
+                # af_sarah: Less aggressive trimming to preserve soft consonants
+                trim_db_adjusted = 25.0  # Gentler than default 30.0
+                margin_start = int(0.10 * sample_rate)  # 100ms leading margin (vs 50ms default)
+                margin_end = int(0.12 * sample_rate)  # 120ms trailing margin
+                log.debug("using_af_sarah_gentle_trimming", trim_db=trim_db_adjusted)
+            else:
+                # Standard trimming for other voices
+                trim_db_adjusted = trim_db
+                margin_start = int(0.05 * sample_rate)  # 50ms leading margin
+                margin_end = int(0.10 * sample_rate)  # 100ms trailing margin
+
             # Use smaller frame/hop lengths for better resolution (prevents voice cutoff)
             audio_trimmed, trim_indices = librosa.effects.trim(
                 audio,
-                top_db=trim_db,
+                top_db=trim_db_adjusted,
                 frame_length=512,  # Smaller for better resolution (default 2048)
                 hop_length=128,  # Smaller for finer control (default 512)
             )
 
-            # Add generous margin at end to preserve soft endings (critical for am_michael voice)
-            # This prevents cutting off final consonants and soft voice endings
-            margin_samples = int(0.1 * sample_rate)  # 100ms margin at end (increased from 50ms)
-            start_idx = trim_indices[0]
-            end_idx = min(trim_indices[1] + margin_samples, len(audio))
+            # Add generous margins at BOTH start and end to preserve soft attack/release
+            start_idx = max(trim_indices[0] - margin_start, 0)  # Add leading margin
+            end_idx = min(trim_indices[1] + margin_end, len(audio))
 
             audio = audio[start_idx:end_idx]
+
+            log.debug(
+                "audio_trimmed_with_margins",
+                margin_start_ms=int(margin_start / sample_rate * 1000),
+                margin_end_ms=int(margin_end / sample_rate * 1000),
+            )
 
         # Spectral noise reduction
         if noise_reduction:
             audio = _apply_noise_reduction(audio)
 
-        # Add fade in/out
+        # Add fade in/out with voice-specific curves
         if add_fade:
-            audio = _apply_fade(audio, sample_rate, fade_duration)
+            audio = _apply_fade(audio, sample_rate, fade_duration, voice_name=voice_name)
 
         log.debug("audio_enhanced", output_length=len(audio))
         return audio
@@ -139,14 +173,18 @@ def _apply_noise_reduction(audio: NDArray[np.float32]) -> NDArray[np.float32]:
 
 
 def _apply_fade(
-    audio: NDArray[np.float32], sample_rate: int, fade_duration: float
+    audio: NDArray[np.float32],
+    sample_rate: int,
+    fade_duration: float,
+    voice_name: str | None = None,
 ) -> NDArray[np.float32]:
-    """Apply fade in/out to audio.
+    """Apply fade in/out to audio with voice-specific curves.
 
     Args:
         audio: Input audio array
         sample_rate: Sample rate in Hz
         fade_duration: Fade duration in seconds
+        voice_name: Voice name for voice-specific fade curves
 
     Returns:
         Audio with fades applied
@@ -154,13 +192,47 @@ def _apply_fade(
     fade_samples = int(fade_duration * sample_rate)
     fade_samples = min(fade_samples, len(audio) // 4)  # Max 25% of audio length
 
-    # Fade in
-    audio[:fade_samples] *= np.linspace(0, 1, fade_samples)
+    # VOICE-SPECIFIC FADE CURVES
+    if voice_name == "af_sarah":
+        # af_sarah needs much softer fade-in (starts from 50% volume)
+        fade_in_curve = np.linspace(0.5, 1, fade_samples)
+        log.debug("using_af_sarah_soft_fade_in", start_volume=0.5)
+    else:
+        # Standard fade for other voices (starts from 30% volume)
+        fade_in_curve = np.linspace(0.3, 1, fade_samples)
 
-    # Fade out
+    # Fade in
+    audio[:fade_samples] *= fade_in_curve
+
+    # Fade out (same for all voices)
     audio[-fade_samples:] *= np.linspace(1, 0, fade_samples)
 
     return audio
+
+
+def add_padding(
+    audio: NDArray[np.float32],
+    sample_rate: int = 24000,
+    padding_start: float = 0.05,  # 50ms before speech
+    padding_end: float = 0.05,  # 50ms after speech
+) -> NDArray[np.float32]:
+    """Add silent padding before and after audio.
+
+    This prevents cutting off first/last characters.
+
+    Args:
+        audio: Input audio array
+        sample_rate: Sample rate in Hz
+        padding_start: Padding duration at start in seconds
+        padding_end: Padding duration at end in seconds
+
+    Returns:
+        Audio with padding added
+    """
+    start_pad = np.zeros(int(padding_start * sample_rate), dtype=np.float32)
+    end_pad = np.zeros(int(padding_end * sample_rate), dtype=np.float32)
+
+    return np.concatenate([start_pad, audio, end_pad])
 
 
 def combine_audio_segments(
@@ -207,8 +279,9 @@ def combine_audio_segments(
                 segment[-crossfade_samples:] *= fade_out
 
             # Apply gentle fade in at start (smooth beginning)
+            # SOFTER FADE-IN FOR SEGMENTS (0.5 instead of 0)
             if len(segment) > crossfade_samples:
-                fade_in = np.linspace(0, 1, crossfade_samples)
+                fade_in = np.linspace(0.5, 1, crossfade_samples)
                 segment[:crossfade_samples] *= fade_in
 
             processed_segments.append(segment)

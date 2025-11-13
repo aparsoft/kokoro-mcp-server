@@ -578,7 +578,7 @@ with tab1:
             min_value=0.5,
             max_value=2.0,
             value=1.0,
-            step=0.1,
+            step=0.05,
             help="Speech speed multiplier",
         )
 

@@ -513,6 +513,7 @@ class TTSEngine(LoggerMixin):
                     trim_silence=self.config.trim_silence,
                     trim_db=self.config.trim_db,
                     fade_duration=self.config.fade_duration,
+                    voice_name=voice,  # Pass voice name for voice-specific processing
                 )
 
             duration = get_audio_duration(final_audio, self.config.sample_rate)
