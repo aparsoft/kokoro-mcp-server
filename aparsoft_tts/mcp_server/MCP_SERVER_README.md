@@ -1,6 +1,6 @@
 # Aparsoft TTS MCP Server
 
-FastMCP-based Model Context Protocol server for Aparsoft TTS.
+FastMCP 2.x-based Model Context Protocol server for Aparsoft TTS.
 
 ## Quick Start
 
@@ -20,8 +20,21 @@ All modules use **one shared MCP instance** from `mcp_server_main.py`:
 
 ```python
 # All modules import the SAME instance
-from aparsoft_tts.mcp_server import mcp, main, config, tts_engine
+from aparsoft_tts.mcp_server import mcp, main, config, get_tts_engine
 ```
+
+### FastMCP 2.x Features ✨
+
+This server leverages FastMCP 2.x patterns:
+
+| Feature | Description |
+|---------|-------------|
+| **Context Injection** | All tools receive `Context` for client-visible logging and progress |
+| **ToolAnnotations** | Semantic hints like `readOnlyHint`, `idempotentHint` for tools |
+| **Tags** | Tool/resource/prompt categorization for better discoverability |
+| **Progress Reporting** | Real-time progress via `ctx.report_progress()` |
+| **Client Logging** | Client-visible logs via `ctx.info()`, `ctx.error()` |
+| **Duplicate Handling** | `on_duplicate_tools="warn"` for safe component registration |
 
 ### Module Structure
 
@@ -30,36 +43,43 @@ aparsoft_tts/mcp_server/
 ├── __init__.py               # 📦 Main entry point (import from here!)
 ├── __main__.py               # 🚀 Module execution entry
 ├── mcp_server_main.py        # ⚙️  Core setup, single MCP instance
-├── mcp_tools.py              # 🔧 6 tool implementations
-├── mcp_tools_educational.py  # 🎓 NEW: Educational script tool
-├── mcp_resources.py          # 📚 4 resource implementations
-├── mcp_prompts.py            # 💡 5 prompt implementations
+├── mcp_tools.py              # 🔧 7 tool implementations (with Context)
+├── mcp_tools_educational.py  # 🎓 Educational script tool
+├── mcp_resources.py          # 📚 4 resource implementations (with tags/mime_type)
+├── mcp_prompts.py            # 💡 6 prompt implementations (with tags)
 └── mcp_utils.py              # 🛠️  Shared utilities
 ```
 
 ## Components
 
-### 🔧 Tools (7)
-- `generate_speech` - Text to speech conversion
-- `list_voices` - Available voices (14 total: 10 English + 4 Hindi)
-- `batch_generate` - Batch processing
-- `process_script` - Plain text script processing
-- **`process_educational_script`** - 🎓 Educational scripts with segments/speeds
-- `generate_podcast` - Multi-voice podcasts
-- `transcribe_speech` - Audio to text
+### 🔧 Tools (7) - All with FastMCP 2.x Context Support
+| Tool | Description | Annotations |
+|------|-------------|-------------|
+| `generate_speech` | Text to speech conversion | `readOnlyHint=False` |
+| `list_voices` | Available voices (14 total: 10 English + 4 Hindi) | `readOnlyHint=True` |
+| `batch_generate` | Batch processing | `readOnlyHint=False` |
+| `process_script` | Plain text script processing | `readOnlyHint=False` |
+| `process_educational_script` | 🎓 Educational scripts with segments/speeds | `readOnlyHint=False` |
+| `generate_podcast` | Multi-voice podcasts | `readOnlyHint=False` |
+| `transcribe_speech` | Audio to text (OpenAI Whisper) | `readOnlyHint=False, idempotentHint=True` |
 
-### 📚 Resources (4)
-- `tts://voice/info/{voice_id}` - Voice details (includes Hindi voices)
-- `tts://voices/comparison` - Voice comparison by language/accent
-- `tts://presets/{preset_name}` - Preset configs (includes Hindi presets)
-- `tts://presets/all` - All presets
+### 📚 Resources (4) - With Tags and MIME Types
+| Resource URI | Description | Tags |
+|--------------|-------------|------|
+| `tts://voice/info/{voice_id}` | Voice details (includes Hindi) | `voice, info, kokoro` |
+| `tts://voices/comparison` | Voice comparison by quality tier | `voice, comparison, selection` |
+| `tts://presets/{preset_name}` | Preset configs (includes Hindi) | `preset, config, use-case` |
+| `tts://presets/all` | All presets by category | `preset, catalog, all` |
 
-### 💡 Prompts (5)
-- `podcast_creator` - Podcast creation guide
-- `voice_selector` - Voice selection helper
-- `script_optimizer` - Script optimization
-- **`educational_script_processor`** - 🎓 Educational script processing guide
-- `troubleshoot_tts` - Troubleshooting guide
+### 💡 Prompts (6) - With Descriptions and Tags
+| Prompt | Description | Tags |
+|--------|-------------|------|
+| `podcast_creator` | Podcast creation guide with AI disclosure | `podcast, creation, workflow` |
+| `voice_selector` | Voice selection helper | `voice, selection, recommendation` |
+| `script_optimizer` | Script optimization for TTS | `script, optimization, best-practices` |
+| `hindi_script_optimizer` | Hindi-specific TTS optimization | `hindi, script, kokoro, indic` |
+| `educational_script_processor` | 🎓 Educational script guide | `educational, script, tutorial` |
+| `troubleshoot_tts` | Troubleshooting guide | `troubleshooting, debug, quality` |
 
 ## Configuration
 
@@ -98,10 +118,10 @@ Edit `~/.cursor/mcp.json`:
 ```python
 # Import the main components
 from aparsoft_tts.mcp_server import (
-    mcp,           # FastMCP server instance
-    main,          # Entry point function
-    config,        # Configuration object
-    tts_engine,    # TTS engine instance
+    mcp,              # FastMCP server instance
+    main,             # Entry point function
+    config,           # Configuration object
+    get_tts_engine,   # Lazy TTS engine loader
 )
 
 # Import Pydantic models for type hints
@@ -116,6 +136,34 @@ from aparsoft_tts.mcp_server import (
 
 # All modules share the SAME mcp instance
 print(f"Server: {mcp.name}")  # aparsoft-tts-server
+```
+
+### FastMCP 2.x Tool Pattern
+
+```python
+from mcp.server.fastmcp import Context
+from mcp.types import ToolAnnotations
+
+@mcp.tool(
+    name="my_tool",
+    description="What this tool does",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,      # Creates/modifies files
+        idempotentHint=True,     # Safe to retry
+    ),
+    tags={"tts", "audio"},       # Categorization
+)
+async def my_tool(request: MyRequest, ctx: Context) -> str:
+    """Tool implementation with Context support."""
+    await ctx.info("Starting operation...")
+    await ctx.report_progress(progress=0.5, total=1.0)
+    
+    try:
+        # ... do work ...
+        return "Success!"
+    except Exception as e:
+        await ctx.error(f"Failed: {e}")
+        raise
 ```
 
 ## Verification
@@ -287,13 +335,16 @@ await generate_podcast(GeneratePodcastRequest(
 ✅ **Single MCP Instance** - No duplicates, consistent state  
 ✅ **Clean Imports** - Import from package level  
 ✅ **Type Safety** - Pydantic models with validation  
-✅ **FastMCP** - Automatic schema generation  
+✅ **FastMCP 2.x** - Context, ToolAnnotations, tags, progress reporting  
 ✅ **Production Ready** - Comprehensive error handling  
+✅ **Hindi Support** - 4 Hindi voices (hf_alpha, hf_beta, hm_omega, hm_psi)  
+✅ **Educational Scripts** - Dedicated tool for markdown scripts with segments
+✅ **Client Logging** - Progress and status visible in MCP clients
 
 ## Documentation
 
-- [USAGE.md](./USAGE.md) - Detailed usage guide
-- [FastMCP Docs](https://gofastmcp.com/) - FastMCP documentation
+- [MCP_SERVER_USAGE.md](./MCP_SERVER_USAGE.md) - Detailed usage guide
+- [FastMCP Docs](https://gofastmcp.com/) - FastMCP 2.x documentation
 - [MCP Spec](https://modelcontextprotocol.io/) - Model Context Protocol
 
 ## Testing
@@ -309,6 +360,6 @@ All tests pass ✅:
 ---
 
 **Status**: ✅ Production Ready  
-**Framework**: FastMCP v2  
+**Framework**: FastMCP v2.14+  
 **Protocol**: Model Context Protocol (MCP)  
 **Transport**: stdio

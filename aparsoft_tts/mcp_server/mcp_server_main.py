@@ -1,6 +1,6 @@
 # aparsoft_tts/mcp_server/mcp_server_main.py
 
-"""Main entry point for Aparsoft TTS MCP Server using FastMCP.
+"""Main entry point for Aparsoft TTS MCP Server using FastMCP 2.x.
 
 This module provides the core server setup, Pydantic request models, and main()
 entry point. The actual MCP components are implemented in separate modules:
@@ -11,6 +11,13 @@ entry point. The actual MCP components are implemented in separate modules:
 
 The server exposes Aparsoft TTS functionality to MCP clients (Claude Desktop, Cursor, etc.)
 using FastMCP's stdio transport for standardized Model Context Protocol communication.
+
+FastMCP 2.x Features Used:
+  - Pydantic models for type-safe request validation
+  - Context injection for logging and progress reporting
+  - ToolAnnotations for read-only hints and metadata
+  - Automatic JSON schema generation from type hints
+  - Async-first design with sync function support
 
 Setup:
   Add to Claude Desktop config (~/.config/Claude/claude_desktop_config.json):
@@ -24,10 +31,11 @@ Setup:
   }
 
 Components:
-  - 6 Tools: generate_speech, list_voices, batch_generate, process_script,
-             generate_podcast, transcribe_speech
+  - 7 Tools: generate_speech, list_voices, batch_generate, process_script,
+             process_educational_script, generate_podcast, transcribe_speech
   - 4 Resources: voice info, voice comparison, presets
-  - 4 Prompts: podcast_creator, voice_selector, script_optimizer, troubleshoot_tts
+  - 5 Prompts: podcast_creator, voice_selector, script_optimizer, 
+               educational_script_processor, troubleshoot_tts
 
 See individual module files for detailed component documentation.
 """
@@ -37,7 +45,7 @@ import warnings
 import os
 import platform
 from pathlib import Path, PureWindowsPath, PurePosixPath
-from typing import Any
+from typing import Any, Annotated
 
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field, field_validator
@@ -51,7 +59,6 @@ from aparsoft_tts.core.engine_factory import get_tts_engine as get_engine_from_f
 from aparsoft_tts.utils.logging import get_logger, setup_logging
 
 # Initialize logging - force stderr for MCP compatibility
-import os
 import logging
 from aparsoft_tts.config import LoggingConfig
 
@@ -92,8 +99,18 @@ log = get_logger(__name__)
 # Get configuration
 config = get_config()
 
-# Initialize FastMCP server
-mcp = FastMCP(config.mcp.server_name, version=config.mcp.server_version)
+# Server version for metadata
+SERVER_VERSION = "2.0.0"
+
+# Initialize FastMCP server with FastMCP 2.x options
+mcp = FastMCP(
+    name=config.mcp.server_name,
+    version=config.mcp.server_version,
+    # FastMCP 2.x: Control duplicate behavior
+    on_duplicate_tools="warn",
+    on_duplicate_resources="warn",
+    on_duplicate_prompts="warn",
+)
 
 # TTS engine cache - LAZY INITIALIZATION
 # Engines are only loaded when first needed (lazy loading per engine type)
@@ -308,12 +325,18 @@ def main() -> None:
 
     This starts the FastMCP server using stdio transport, making it compatible
     with Claude Desktop, Cursor, and other MCP clients.
+    
+    FastMCP 2.x supports multiple transports:
+    - stdio: Default, for local MCP clients (Claude Desktop, Cursor)
+    - http: For remote connections with HTTP transport
+    - sse: For Server-Sent Events compatibility
     """
-    log.info("starting_mcp_server", transport=config.mcp.transport)
+    log.info("starting_mcp_server", transport=config.mcp.transport, version=SERVER_VERSION)
 
     try:
-        # Run the server with banner display
-        mcp.run(transport="stdio", show_banner=True)
+        # Run the server with stdio transport (default for MCP clients)
+        # FastMCP 2.x: show_banner displays server info on startup
+        mcp.run(transport="stdio")
     except KeyboardInterrupt:
         log.info("mcp_server_stopped_by_user")
     except Exception as e:

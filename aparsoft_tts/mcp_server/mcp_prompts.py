@@ -1,16 +1,23 @@
 # aparsoft_tts/mcp_server/mcp_prompts.py
 
-"""MCP Prompts implementation for Aparsoft TTS.
+"""MCP Prompts implementation for Aparsoft TTS - FastMCP 2.x compatible.
 
-Implements 4 guided workflow prompts using FastMCP's @mcp.prompt decorator:
+Implements 6 guided workflow prompts using FastMCP's @mcp.prompt decorator:
   - podcast_creator: Step-by-step podcast creation guide with MANDATORY AI disclosure
   - voice_selector: Interactive voice selection based on content requirements
   - script_optimizer: Best practices for TTS-optimized script writing
+  - hindi_script_optimizer: Hindi-specific TTS optimization with Kokoro rules
   - troubleshoot_tts: Diagnostic guide for common quality issues
+  - educational_script_processor: Guide for processing educational markdown scripts
 
 Prompts provide reusable templates and workflows to guide users through complex tasks.
 Each prompt uses Pydantic models for parameter validation and generates contextual
 guidance based on user requirements.
+
+FastMCP 2.x Features Used:
+- Prompt descriptions for client-visible documentation
+- Tags for prompt categorization
+- Enhanced parameter validation
 
 Utility functions are imported from mcp_utils.py for template generation.
 """
@@ -54,7 +61,11 @@ class PodcastPromptArgs(BaseModel):
         return v.lower()
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="podcast_creator",
+    description="Step-by-step guide for creating professional AI-generated podcasts with MANDATORY AI disclosure",
+    tags={"podcast", "creation", "workflow", "ai-disclosure"},
+)
 async def podcast_creator(args: PodcastPromptArgs) -> str:
     """Guide for creating professional AI-generated podcasts.
 
@@ -141,7 +152,11 @@ class VoiceSelectionPromptArgs(BaseModel):
         return v.lower()
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="voice_selector",
+    description="Interactive guide for selecting optimal voice based on content type, tone, audience, and duration",
+    tags={"voice", "selection", "recommendation", "guide"},
+)
 async def voice_selector(args: VoiceSelectionPromptArgs) -> str:
     """Interactive guide for selecting the optimal voice for your content.
 
@@ -207,7 +222,11 @@ class ScriptOptimizationPromptArgs(BaseModel):
     target_audience: str = Field(default="general", description="Target audience for optimization")
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="script_optimizer",
+    description="Comprehensive guide for optimizing scripts for natural-sounding TTS output",
+    tags={"script", "optimization", "best-practices", "writing"},
+)
 async def script_optimizer(args: ScriptOptimizationPromptArgs) -> str:
     """Guide for optimizing scripts for natural-sounding TTS output.
 
@@ -252,7 +271,11 @@ class HindiScriptOptimizationPromptArgs(BaseModel):
     tts_engine: str = Field(default="kokoro", description="TTS engine being used")
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="hindi_script_optimizer",
+    description="Hindi-specific TTS optimization guide with Kokoro punctuation rules and phonetic Devanagari best practices",
+    tags={"hindi", "script", "optimization", "kokoro", "indic"},
+)
 async def hindi_script_optimizer(args: HindiScriptOptimizationPromptArgs) -> str:
     """Guide for optimizing Hindi scripts for natural TTS output with punctuation best practices.
 
@@ -533,7 +556,11 @@ Happy creating! 🇮🇳
         return f"❌ Error generating Hindi script optimization guide: {str(e)}"
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="troubleshoot_tts",
+    description="Comprehensive diagnostic guide for common TTS quality issues with solutions",
+    tags={"troubleshooting", "debug", "quality", "issues"},
+)
 async def troubleshoot_tts() -> str:
     """Comprehensive troubleshooting guide for TTS quality issues.
 
@@ -579,7 +606,11 @@ class EducationalScriptPromptArgs(BaseModel):
     )
 
 
-@mcp.prompt()
+@mcp.prompt(
+    name="educational_script_processor",
+    description="Guide for correctly processing educational video scripts with segments, markdown, and variable speeds",
+    tags={"educational", "script", "tutorial", "segments", "markdown"},
+)
 async def educational_script_processor(args: EducationalScriptPromptArgs) -> str:
     """Guide for processing educational video scripts correctly.
 

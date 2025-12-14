@@ -1,6 +1,6 @@
 # aparsoft_tts/mcp_server/mcp_resources.py
 
-"""MCP Resources implementation for Aparsoft TTS.
+"""MCP Resources implementation for Aparsoft TTS - FastMCP 2.x compatible.
 
 Implements 4 resources using FastMCP's @mcp.resource decorator pattern:
   - tts://voice/info/{voice_id}: Detailed characteristics for specific voice
@@ -12,9 +12,15 @@ Resources provide read-only contextual data to help MCP clients make informed de
 about voice selection and settings. Based on official Kokoro-82M voice data with quality
 grades (A-F scale) and training hours (HH=10-100hr, H=1-10hr, MM=10-100min).
 
+FastMCP 2.x Features Used:
+- Resource descriptions for client-visible documentation
+- Tags for resource categorization
+- mime_type specification for proper content-type handling
+
 Utility functions are imported from mcp_utils.py for clean separation of concerns.
 """
 
+import json
 import warnings
 import os
 import platform
@@ -41,7 +47,12 @@ log = get_logger(__name__)
 # Based on Kokoro-82M voice characteristics from HuggingFace documentation.
 
 
-@mcp.resource("tts://voice/info/{voice_id}")
+@mcp.resource(
+    uri="tts://voice/info/{voice_id}",
+    description="Detailed characteristics for a specific Kokoro voice including quality grade, training data, best uses",
+    mime_type="application/json",
+    tags={"voice", "info", "kokoro"},
+)
 async def get_voice_info(voice_id: str) -> str:
     """Get detailed information about a specific Kokoro voice.
 
@@ -70,8 +81,6 @@ async def get_voice_info(voice_id: str) -> str:
         log.info("mcp_resource_voice_info_retrieved", voice_id=voice_id)
 
         # Return formatted JSON for easy parsing
-        import json
-
         return json.dumps(info, indent=2)
 
     except Exception as e:
@@ -79,7 +88,12 @@ async def get_voice_info(voice_id: str) -> str:
         return json.dumps({"error": str(e), "voice_id": voice_id})
 
 
-@mcp.resource("tts://voices/comparison")
+@mcp.resource(
+    uri="tts://voices/comparison",
+    description="Comprehensive comparison of all available voices organized by quality tier, gender, and accent",
+    mime_type="application/json",
+    tags={"voice", "comparison", "selection"},
+)
 async def get_voices_comparison() -> str:
     """Get comprehensive comparison of all available voices.
 
@@ -107,8 +121,6 @@ async def get_voices_comparison() -> str:
             total_voices=comparison.get("total_voices", 0),
         )
 
-        import json
-
         return json.dumps(comparison, indent=2)
 
     except Exception as e:
@@ -116,7 +128,12 @@ async def get_voices_comparison() -> str:
         return json.dumps({"error": str(e)})
 
 
-@mcp.resource("tts://presets/{preset_name}")
+@mcp.resource(
+    uri="tts://presets/{preset_name}",
+    description="Pre-configured settings for specific use cases like youtube_tutorial, podcast_host, audiobook_narration",
+    mime_type="application/json",
+    tags={"preset", "config", "use-case"},
+)
 async def get_preset(preset_name: str) -> str:
     """Get configuration preset for a specific use case.
 
@@ -148,8 +165,6 @@ async def get_preset(preset_name: str) -> str:
 
         log.info("mcp_resource_preset_retrieved", preset_name=preset_name)
 
-        import json
-
         return json.dumps(preset, indent=2)
 
     except Exception as e:
@@ -157,7 +172,12 @@ async def get_preset(preset_name: str) -> str:
         return json.dumps({"error": str(e), "preset_name": preset_name})
 
 
-@mcp.resource("tts://presets/all")
+@mcp.resource(
+    uri="tts://presets/all",
+    description="All available presets organized by category (education, entertainment, professional, wellness)",
+    mime_type="application/json",
+    tags={"preset", "catalog", "all"},
+)
 async def get_all_presets() -> str:
     """Get all available configuration presets organized by category.
 
@@ -179,8 +199,6 @@ async def get_all_presets() -> str:
         presets = mcp_utils.get_all_presets()
 
         log.info("mcp_resource_all_presets_retrieved")
-
-        import json
 
         return json.dumps(presets, indent=2)
 

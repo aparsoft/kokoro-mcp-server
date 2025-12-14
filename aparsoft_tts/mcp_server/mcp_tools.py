@@ -1,25 +1,32 @@
 # aparsoft_tts/mcp_server/mcp_tools.py
 
-"""MCP Tools implementation for Aparsoft TTS.
+"""MCP Tools implementation for Aparsoft TTS using FastMCP 2.x patterns.
 
-Implements 6 tools using FastMCP's @mcp.tool decorator pattern:
+Implements 7 tools using FastMCP's @mcp.tool decorator pattern:
   - generate_speech: Convert text to speech with voice/speed/enhancement options
   - list_voices: Get available voices organized by gender and accent
   - batch_generate: Process multiple texts efficiently in batch
   - process_script: Convert complete script files to voiceovers with gaps
+  - process_educational_script: Process markdown educational scripts with segments
   - generate_podcast: Create multi-voice podcasts with per-segment voice/speed control
   - transcribe_speech: Audio-to-text using OpenAI Whisper
 
-Tools automatically use Pydantic models from mcp_server_main.py for request validation.
-FastMCP generates JSON schemas from Python type hints and docstrings.
+FastMCP 2.x Features:
+  - @mcp.tool decorator (no parentheses for simple tools)
+  - Context injection for logging and progress reporting
+  - ToolAnnotations for readOnlyHint, idempotentHint metadata
+  - Pydantic models with Field() for parameter metadata
+  - Automatic JSON schema generation from type hints
 """
 
 import warnings
 import os
 import platform
 from pathlib import Path
+from typing import Annotated
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
+from mcp.types import ToolAnnotations
 
 from aparsoft_tts.mcp_server.mcp_server_main import (
     mcp,
@@ -106,10 +113,24 @@ def normalize_path(path_str: str) -> Path:
 # Each tool is defined as an async function with type-annotated parameters
 # and return types. FastMCP automatically generates the tool schema from
 # the function signature and docstring.
+#
+# FastMCP 2.x Patterns:
+#   - Use @mcp.tool (no parentheses) for simple tools
+#   - Use @mcp.tool(...) with arguments for customization
+#   - Use Context parameter for logging and progress reporting
+#   - Use ToolAnnotations for hints (readOnlyHint, idempotentHint)
 
 
-@mcp.tool()
-async def generate_speech(request: GenerateSpeechRequest) -> str:
+@mcp.tool(
+    name="generate_speech",
+    description="Generate high-quality speech from text using TTS engine (Kokoro, OpenVoice, or Indic)",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,  # Creates files
+        idempotentHint=True,  # Same input produces same output
+    ),
+    tags={"tts", "audio", "speech"},
+)
+async def generate_speech(request: GenerateSpeechRequest, ctx: Context) -> str:
     """Generate high-quality speech from text using TTS engine.
 
     This tool converts text to natural-sounding speech with professional
@@ -151,6 +172,7 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
 
     Args:
         request: Speech generation parameters including engine selection
+        ctx: FastMCP Context for logging and progress reporting
 
     Returns:
         Success message with file details
@@ -164,7 +186,10 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         ... ))
     """
     try:
-        # Bind request context for logging
+        # FastMCP 2.x: Use Context for client-visible logging
+        await ctx.info(f"Generating speech with {request.engine} engine, voice: {request.voice}")
+
+        # Bind request context for internal logging
         bind_context(
             operation="generate_speech",
             engine=request.engine,
@@ -195,8 +220,13 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
             output_file=output_file_abs,
         )
 
+        # FastMCP 2.x: Report progress
+        await ctx.report_progress(progress=10, total=100)
+
         # Get TTS engine for the requested engine type (lazy loaded on first use)
         engine = get_tts_engine(request.engine)
+
+        await ctx.report_progress(progress=30, total=100)
 
         # Build kwargs for generate() - only include emotion for Indic engine
         generate_kwargs = {
@@ -214,6 +244,8 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
         # Generate speech with absolute path
         output_path = engine.generate(**generate_kwargs)
 
+        await ctx.report_progress(progress=90, total=100)
+
         # Get file size and actual path
         actual_path = Path(output_path).resolve()
         file_size = actual_path.stat().st_size
@@ -225,6 +257,8 @@ async def generate_speech(request: GenerateSpeechRequest) -> str:
             output_file=str(actual_path),
             size_bytes=file_size,
         )
+
+        await ctx.report_progress(progress=100, total=100)
 
         emotion_info = f"Emotion: {request.emotion}\n" if request.engine == "indic" else ""
 
@@ -247,11 +281,20 @@ The audio file has been saved and is ready to use."""
         return f"❌ Error: {str(e)}"
     except Exception as e:
         log.error("mcp_generate_speech_unexpected_error", error=str(e))
+        await ctx.error(f"Unexpected error: {str(e)}")
         return f"❌ Unexpected error: {str(e)}"
 
 
-@mcp.tool()
-async def list_voices() -> str:
+@mcp.tool(
+    name="list_voices",
+    description="List all available TTS voices across all engines (Kokoro, OpenVoice, Indic)",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,  # Read-only operation
+        idempotentHint=True,
+    ),
+    tags={"tts", "voices", "info"},
+)
+async def list_voices(ctx: Context) -> str:
     """List all available TTS voices across all engines.
 
     Returns detailed information about available voices organized by
@@ -352,11 +395,20 @@ Konkani, Maithili, Nepali, Santali, Sindhi
 
     except Exception as e:
         log.error("mcp_list_voices_error", error=str(e))
+        await ctx.error(f"Error listing voices: {str(e)}")
         return f"❌ Error listing voices: {str(e)}"
 
 
-@mcp.tool()
-async def batch_generate(request: BatchGenerateRequest) -> str:
+@mcp.tool(
+    name="batch_generate",
+    description="Generate multiple audio files from a list of texts using selected TTS engine",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,  # Creates files
+        idempotentHint=True,
+    ),
+    tags={"tts", "audio", "batch"},
+)
+async def batch_generate(request: BatchGenerateRequest, ctx: Context) -> str:
     """Generate multiple audio files from a list of texts using selected engine.
 
     Useful for creating multiple voiceover segments for a video project.
@@ -448,11 +500,20 @@ Generated {len(paths)} audio files:
         return f"❌ Error: {str(e)}"
     except Exception as e:
         log.error("mcp_batch_generate_unexpected_error", error=str(e))
+        await ctx.error(f"Unexpected error: {str(e)}")
         return f"❌ Unexpected error: {str(e)}"
 
 
-@mcp.tool()
-async def process_script(request: ProcessScriptRequest) -> str:
+@mcp.tool(
+    name="process_script",
+    description="Process a complete video script file and generate voiceover audio",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,  # Creates files
+        idempotentHint=True,
+    ),
+    tags={"tts", "audio", "script", "voiceover"},
+)
+async def process_script(request: ProcessScriptRequest, ctx: Context) -> str:
     """Process a complete video script file using selected engine.
 
     Reads a text file, splits it by paragraphs, generates audio for each segment,
@@ -558,14 +619,24 @@ Your complete voiceover is ready to use!"""
         return f"❌ Script file not found: {request.script_path}"
     except AparsoftTTSError as e:
         log.error("mcp_process_script_error", error=str(e))
+        await ctx.error(f"Error: {str(e)}")
         return f"❌ Error: {str(e)}"
     except Exception as e:
         log.error("mcp_process_script_unexpected_error", error=str(e))
+        await ctx.error(f"Unexpected error: {str(e)}")
         return f"❌ Unexpected error: {str(e)}"
 
 
-@mcp.tool()
-async def generate_podcast(request: GeneratePodcastRequest) -> str:
+@mcp.tool(
+    name="generate_podcast",
+    description="Generate multi-voice podcast with different voices and speeds per segment",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,  # Creates files
+        idempotentHint=True,
+    ),
+    tags={"tts", "audio", "podcast", "multi-voice"},
+)
+async def generate_podcast(request: GeneratePodcastRequest, ctx: Context) -> str:
     """Generate multi-voice podcast with different voices and speeds per segment.
 
     This tool enables podcast-style content creation with:
@@ -832,14 +903,24 @@ Audio Enhanced: {request.enhance}
         return f"❌ Validation Error: {str(e)}"
     except AparsoftTTSError as e:
         log.error("mcp_generate_podcast_error", error=str(e))
+        await ctx.error(f"Error: {str(e)}")
         return f"❌ Error: {str(e)}"
     except Exception as e:
         log.error("mcp_generate_podcast_unexpected_error", error=str(e))
+        await ctx.error(f"Unexpected error: {str(e)}")
         return f"❌ Unexpected error: {str(e)}"
 
 
-@mcp.tool()
-async def transcribe_speech(request: TranscribeAudioRequest) -> str:
+@mcp.tool(
+    name="transcribe_speech",
+    description="Transcribe audio file to text using OpenAI Whisper",
+    annotations=ToolAnnotations(
+        readOnlyHint=False,  # Creates transcript file
+        idempotentHint=True,
+    ),
+    tags={"stt", "audio", "transcription", "whisper"},
+)
+async def transcribe_speech(request: TranscribeAudioRequest, ctx: Context) -> str:
     """Transcribe audio file to text using OpenAI Whisper.
 
     Convert speech in audio files (WAV, MP3, MP4, etc.) to written text.
