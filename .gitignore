@@ -178,6 +178,7 @@ pages/*
 scripts
 fastapi_aparsoft_tts
 fastapi_aparsoft_tts/*
+DEEPGRAM_*
 aparailms_outputs
 aparailms_outputs/*
 **/*indic*
